@@ -18,6 +18,7 @@ body {
     color: #0f0;
 }
 
+/* Контейнер игры: установка вертикальной ориентации */
 #gameContainer {
     position: relative;
     width: 100vw;
@@ -26,18 +27,22 @@ body {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    /* Принудительно обеспечиваем правильное соотношение сторон */
+    aspect-ratio: 9/16;
+    max-width: calc(100vh * 9/16);
+    margin: 0 auto;
 }
 
+/* Canvas с фиксированными пропорциями 1080×1920 */
 #gameCanvas {
     position: absolute;
-    top: 0;
-    left: 0;
     background-color: #000;
     z-index: 1;
-    max-width: 100vw;
-    max-height: 100vh;
+    /* Canvas будет масштабирован в JS с сохранением пропорций */
+    aspect-ratio: 9/16; /* Соотношение сторон для вертикальной ориентации */
 }
 
+/* Интерфейс сверху канваса */
 #uiOverlay {
     position: absolute;
     top: 0;
@@ -48,19 +53,7 @@ body {
     z-index: 2;
 }
 
-#topInterface {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 80px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    z-index: 3;
-}
-
+/* Счетчик очков */
 #scoreContainer {
     position: absolute;
     top: 20px;
@@ -71,17 +64,7 @@ body {
     pointer-events: none;
 }
 
-#topBonusContainer {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 40px;
-    z-index: 3;
-    pointer-events: auto;
-}
-
+/* Кнопка настроек */
 #settingsButton {
     position: absolute;
     top: 20px;
@@ -96,58 +79,26 @@ body {
     filter: drop-shadow(0 0 5px #0f0);
 }
 
-#gameAreaBoundaries {
+/* Контейнер с бонусами (теперь в нижней части как в ТЗ) */
+#bonusContainer {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+    bottom: 20px; /* Располагаем в нижней части экрана согласно ТЗ */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
     z-index: 2;
+    pointer-events: auto;
 }
 
-.boundary {
-    position: absolute;
-    background-color: rgba(0, 255, 0, 0.3);
-    box-shadow: 0 0 10px #0f0;
-}
-
-#topBoundary {
-    top: 300px;
-    left: 0;
-    width: 100%;
-    height: 5px;
-    background-color: rgba(255, 0, 0, 0.5);
-    box-shadow: 0 0 10px #f00;
-}
-
-#leftBoundary {
-    top: 300px;
-    left: 0;
-    width: 2px;
-    height: calc(100% - 300px - 200px);
-}
-
-#rightBoundary {
-    top: 300px;
-    right: 0;
-    width: 2px;
-    height: calc(100% - 300px - 200px);
-}
-
-#bottomBoundary {
-    bottom: 200px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-}
-
+/* Стили бонусов */
 .bonus {
-    width: 80px;
-    height: 80px;
+    width: 100px; /* Увеличиваем размер согласно ТЗ */
+    height: 100px; /* Увеличиваем размер согласно ТЗ */
     border-radius: 50%;
     background-color: rgba(0, 0, 0, 0.7);
-    border: 2px solid #0f0;
+    border: 3px solid #0f0;
     cursor: pointer;
     pointer-events: auto;
     display: flex;
@@ -155,8 +106,15 @@ body {
     align-items: center;
     box-shadow: 0 0 15px #0f0;
     position: relative;
+    transition: all 0.3s ease;
 }
 
+.bonus:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px #0f0, 0 0 40px #0f0;
+}
+
+/* Иконка дезинтеграции */
 #disintegrateBonus {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>');
     background-size: 60%;
@@ -164,6 +122,7 @@ body {
     background-repeat: no-repeat;
 }
 
+/* Иконка бомбы */
 #bombBonus {
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>');
     background-size: 60%;
@@ -171,6 +130,7 @@ body {
     background-repeat: no-repeat;
 }
 
+/* Состояние кулдауна бонуса */
 .bonus.cooldown::before {
     content: "";
     position: absolute;
@@ -190,10 +150,33 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     color: #0f0;
-    font-size: 24px;
+    font-size: 20px;
     z-index: 4;
 }
 
+/* Верхняя линия (граница проигрыша) */
+#boundaryLine {
+    position: absolute;
+    width: 100%;
+    height: 5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    box-shadow: 0 0 10px #f00;
+    /* Позиция Y будет установлена в JS (300px в координатах игры) */
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* Рамка игрового поля */
+#gameFieldBorder {
+    position: absolute;
+    border: 2px solid rgba(0, 255, 0, 0.3);
+    box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.2);
+    /* Размеры будут установлены в JS */
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* Панель настроек */
 #settingsPanel {
     position: fixed;
     top: 50%;
@@ -202,7 +185,8 @@ body {
     width: 80%;
     max-width: 800px;
     height: auto;
-    max-height: 80%;
+    min-height: 400px;
+    max-height: 70%;
     background-color: rgba(0, 0, 0, 0.9);
     border: 2px solid #0f0;
     box-shadow: 0 0 20px #0f0;
@@ -210,6 +194,9 @@ body {
     display: flex;
     flex-direction: column;
     padding: 20px;
+    /* Соответствие ТЗ */
+    border-radius: 5px;
+    pointer-events: auto;
 }
 
 .settingsHeader {
@@ -223,15 +210,16 @@ body {
 
 .settingsHeader h2 {
     color: #0f0;
-    font-size: 36px;
-    text-shadow: 0 0 10px #0f0;
+    font-size: 24px;
+    text-shadow: 0 0 8px #0f0;
 }
 
 #closeSettings {
-    font-size: 30px;
+    font-size: 24px;
     color: #0f0;
     cursor: pointer;
-    text-shadow: 0 0 10px #0f0;
+    text-shadow: 0 0 8px #0f0;
+    padding: 5px;
 }
 
 .settingsContent {
@@ -239,7 +227,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 30px;
-    overflow-y: auto;
 }
 
 .settingItem {
@@ -249,7 +236,7 @@ body {
 }
 
 .settingItem label, .settingItem p {
-    font-size: 24px;
+    font-size: 18px;
     color: #0f0;
     text-shadow: 0 0 5px #0f0;
 }
@@ -259,9 +246,10 @@ body {
     width: 100%;
     height: 20px;
     background: #000;
-    border: 1px solid #0f0;
+    border: 2px solid #0f0;
     border-radius: 10px;
-    box-shadow: 0 0 5px #0f0;
+    box-shadow: 0 0 10px #0f0;
+    margin: 15px 0;
 }
 
 .settingItem input[type="range"]::-webkit-slider-thumb {
@@ -270,6 +258,27 @@ body {
     height: 30px;
     background: #0f0;
     border-radius: 50%;
+    box-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+    cursor: pointer;
+}
+
+/* Стилизация слайдера для Firefox */
+.settingItem input[type="range"]::-moz-range-thumb {
+    width: 30px;
+    height: 30px;
+    background: #0f0;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+    border: none;
+    cursor: pointer;
+}
+
+/* Трек слайдера для Firefox */
+.settingItem input[type="range"]::-moz-range-track {
+    height: 20px;
+    background: #000;
+    border: 2px solid #0f0;
+    border-radius: 10px;
     box-shadow: 0 0 10px #0f0;
 }
 
@@ -280,26 +289,40 @@ body {
 }
 
 .schemeButton {
-    padding: 10px 20px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border: 1px solid #0f0;
+    padding: 15px 25px; /* Увеличенный размер */
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 2px solid #0f0;
     color: #0f0;
     cursor: pointer;
     text-shadow: 0 0 5px #0f0;
-    box-shadow: 0 0 5px #0f0;
+    box-shadow: 0 0 10px #0f0;
     transition: all 0.3s ease;
+    border-radius: 5px;
+    font-size: 18px;
+    text-align: center;
+    min-width: 150px;
+}
+
+.schemeButton:hover {
+    background-color: rgba(0, 80, 0, 0.3);
+    transform: scale(1.05);
 }
 
 .schemeButton.active {
-    background-color: #0f0;
-    color: #000;
-    box-shadow: 0 0 15px #0f0;
+    background-color: rgba(0, 255, 0, 0.2);
+    box-shadow: 0 0 15px #0f0, inset 0 0 10px #0f0;
+    color: #fff;
 }
 
 .hidden {
     display: none !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
+/* Цветовые схемы */
+/* Киберпанк (синий/пурпурный) */
 body.cyberpunk {
     color: #0ff;
 }
@@ -313,16 +336,11 @@ body.cyberpunk #closeSettings,
 body.cyberpunk .settingItem label,
 body.cyberpunk .settingItem p,
 body.cyberpunk .schemeButton,
-body.cyberpunk .boundary {
+body.cyberpunk #gameFieldBorder {
     color: #f0f;
     border-color: #f0f;
     box-shadow: 0 0 15px #f0f;
     text-shadow: 0 0 10px #f0f;
-}
-
-body.cyberpunk #topBoundary {
-    background-color: rgba(255, 0, 255, 0.5);
-    box-shadow: 0 0 10px #f0f;
 }
 
 body.cyberpunk .settingItem input[type="range"] {
@@ -341,6 +359,7 @@ body.cyberpunk .schemeButton.active {
     box-shadow: 0 0 15px #f0f;
 }
 
+/* Хаос (красный/желтый) */
 body.chaos {
     color: #f00;
 }
@@ -354,16 +373,11 @@ body.chaos #closeSettings,
 body.chaos .settingItem label,
 body.chaos .settingItem p,
 body.chaos .schemeButton,
-body.chaos .boundary {
+body.chaos #gameFieldBorder {
     color: #ff0;
     border-color: #ff0;
     box-shadow: 0 0 15px #ff0;
     text-shadow: 0 0 10px #ff0;
-}
-
-body.chaos #topBoundary {
-    background-color: rgba(255, 255, 0, 0.5);
-    box-shadow: 0 0 10px #ff0;
 }
 
 body.chaos .settingItem input[type="range"] {
@@ -382,11 +396,19 @@ body.chaos .schemeButton.active {
     box-shadow: 0 0 15px #ff0;
 }
 
-@media (max-width: 1080px) or (max-height: 1920px) {
-    #gameCanvas {
-        max-width: 100%;
-        max-height: 100%;
-        width: auto;
+/* Обновляем медиа-запрос для более надежной адаптации */
+@media (max-aspect-ratio: 9/16) {
+    #gameContainer {
+        width: 100%;
+        max-width: none;
         height: auto;
+        max-height: 100vh;
+    }
+}
+
+@media (min-aspect-ratio: 9/16) {
+    #gameContainer {
+        height: 100vh;
+        width: auto;
     }
 }

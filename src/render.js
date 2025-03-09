@@ -153,28 +153,22 @@ const Renderer = (() => {
     
     /**
      * Отрисовка пульсирующей верхней линии (границы проигрыша)
+     * Примечание: основная линия отображается через DOM элемент, 
+     * но здесь мы добавляем дополнительный эффект пульсации
      */
     function renderBoundaryLine(ctx, lineY) {
         // Расчет пульсации (от 0 до 1)
         const pulse = (Math.sin(performance.now() * 0.005) + 1) / 2;
         
-        // Градиент для свечения
+        // Градиент для пульсирующего свечения вокруг линии
         const gradient = ctx.createLinearGradient(0, lineY - 10, 0, lineY + 10);
         gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
-        gradient.addColorStop(0.5, `rgba(255, 0, 0, ${0.5 + pulse * 0.5})`);
+        gradient.addColorStop(0.5, `rgba(255, 0, 0, ${0.3 + pulse * 0.3})`);
         gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
         
-        // Отрисовка светящейся области
+        // Отрисовка пульсирующего свечения на канвасе
         ctx.fillStyle = gradient;
         ctx.fillRect(0, lineY - 10, GAME_WIDTH, 20);
-        
-        // Отрисовка центральной линии
-        ctx.beginPath();
-        ctx.moveTo(0, lineY);
-        ctx.lineTo(GAME_WIDTH, lineY);
-        ctx.lineWidth = 3 + pulse * 4; // Толщина линии пульсирует
-        ctx.strokeStyle = `rgba(255, 0, 0, ${0.7 + pulse * 0.3})`;
-        ctx.stroke();
     }
     
     /**

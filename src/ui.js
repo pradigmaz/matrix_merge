@@ -7,7 +7,7 @@
 const UI = (() => {
     // Хранение состояния интерфейса
     const state = {
-        settingsOpen: false,
+        settingsOpen: false, // Изначально настройки закрыты
         musicVolume: 50,
         soundVolume: 50,
         colorScheme: 'classic'
@@ -18,13 +18,22 @@ const UI = (() => {
      * Настраивает обработчики событий для элементов UI
      */
     function init() {
+        // Убедимся, что панель настроек скрыта при запуске
+        const settingsPanel = document.getElementById('settingsPanel');
+        settingsPanel.classList.add('hidden');
+        state.settingsOpen = false;
+        console.log('UI initialized. Settings panel hidden:', settingsPanel.classList.contains('hidden'));
+        
         // Кнопка настроек
         const settingsButton = document.getElementById('settingsButton');
         settingsButton.addEventListener('click', toggleSettings);
         
         // Кнопка закрытия настроек
         const closeSettings = document.getElementById('closeSettings');
-        closeSettings.addEventListener('click', toggleSettings);
+        closeSettings.addEventListener('click', (e) => {
+            e.stopPropagation(); // Предотвращаем всплытие события
+            closeSettingsPanel(); // Используем функцию принудительного закрытия
+        });
         
         // Ползунки громкости
         const musicSlider = document.getElementById('musicVolume');
@@ -54,7 +63,10 @@ const UI = (() => {
         
         // Кнопки бонусов
         const disintegrateBonus = document.getElementById('disintegrateBonus');
-        disintegrateBonus.addEventListener('click', () => {
+        disintegrateBonus.addEventListener('click', (event) => {
+            // Предотвращаем всплытие события, чтобы не создавать объекты
+            event.stopPropagation();
+            
             if (!disintegrateBonus.classList.contains('cooldown')) {
                 // Активация бонуса
                 Game.activateDisintegration();
@@ -65,7 +77,10 @@ const UI = (() => {
         });
         
         const bombBonus = document.getElementById('bombBonus');
-        bombBonus.addEventListener('click', () => {
+        bombBonus.addEventListener('click', (event) => {
+            // Предотвращаем всплытие события, чтобы не создавать объекты
+            event.stopPropagation();
+            
             if (!bombBonus.classList.contains('cooldown')) {
                 // Получаем координаты в игровой области
                 const canvas = document.getElementById('gameCanvas');
@@ -91,11 +106,21 @@ const UI = (() => {
         const settingsPanel = document.getElementById('settingsPanel');
         state.settingsOpen = !state.settingsOpen;
         
+        console.log('Toggle settings. New state:', state.settingsOpen);
+        
         if (state.settingsOpen) {
             settingsPanel.classList.remove('hidden');
         } else {
             settingsPanel.classList.add('hidden');
         }
+    }
+    
+    // Добавим функцию принудительного закрытия настроек
+    function closeSettingsPanel() {
+        const settingsPanel = document.getElementById('settingsPanel');
+        state.settingsOpen = false;
+        settingsPanel.classList.add('hidden');
+        console.log('Settings panel forcibly closed');
     }
     
     /**

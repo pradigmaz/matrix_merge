@@ -20,15 +20,21 @@ const Physics = (() => {
     // Слияния, которые ожидают подтверждения с задержкой
     const pendingMerges = [];
     
+    // Флаг для отслеживания произошедших слияний
+    let mergeOccurred = false;
+    
     /**
      * Создание нового объекта с физическими свойствами
      */
     function createObject(x, y, level = 1) {
         // Базовый радиус для уровня 1
-        const baseRadius = 15;
+        const baseRadius = 65;
         
         // Формула увеличения: +20% на каждый уровень
-        const radius = baseRadius * Math.pow(1.2, level - 1);
+        let radius = baseRadius * Math.pow(1.2, level - 1);
+        
+        // Ограничение максимального размера объекта
+        radius = Math.min(radius, 100); // Максимальный радиус 100 (диаметр 200)
         
         return {
             id: nextId++,
@@ -322,6 +328,9 @@ const Physics = (() => {
         
         // Добавляем новый объект
         objects.push(newObj);
+        
+        // Устанавливаем флаг слияния
+        mergeOccurred = true;
     }
     
     /**
@@ -331,20 +340,19 @@ const Physics = (() => {
         let merges = 0;
         let points = 0;
         
-        // Проверка выполненных слияний через сравнение ID объектов
-        // Для упрощения, считаем, что каждый новый объект получает новый ID
-        // и если minId < nextId - numberOfObjects, то произошло слияние
-        const minId = objects.reduce((min, obj) => Math.min(min, obj.id), Infinity);
-        const maxId = objects.reduce((max, obj) => Math.max(max, obj.id), -Infinity);
-        
-        // Если был создан новый объект через слияние
-        if (minId !== Infinity && maxId !== -Infinity && maxId >= nextId - 1) {
+        // Проверяем флаг слияния вместо логики с ID
+        if (mergeOccurred) {
             // Находим объект с максимальным ID (это новый слитый объект)
+            const maxId = objects.reduce((max, obj) => Math.max(max, obj.id), -Infinity);
             const newObj = objects.find(obj => obj.id === maxId);
+            
             if (newObj) {
                 merges = 1; // Одно слияние
                 points = newObj.level * 10; // 10 очков за каждый уровень
             }
+            
+            // Сбрасываем флаг слияния
+            mergeOccurred = false;
         }
         
         return { merges, points };

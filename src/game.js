@@ -21,7 +21,8 @@ const gameState = {
     isGameOver: false,
     colorScheme: 'classic', // classic, cyberpunk, chaos
     bonusCooldown: 0,
-    activeBonus: null
+    activeBonus: null,
+    gameStartTime: 0
 };
 
 /**
@@ -46,6 +47,12 @@ function initGame() {
     // Инициализация заглушек для рекламы и бонусов
     Ads.init();
     
+    // Очистка массива объектов при старте, защита от автогенерации
+    gameState.objects = [];
+    gameState.score = 0;
+    gameState.isGameOver = false;
+    gameState.gameStartTime = performance.now();
+    
     // Запуск игрового цикла
     lastFrameTime = performance.now();
     animationFrameId = requestAnimationFrame(gameLoop);
@@ -53,35 +60,65 @@ function initGame() {
 
 /**
  * Изменение размера canvas для адаптации к размеру экрана
- * Сохраняет пропорции 1080×1920
+ * Сохраняет пропорции 1080×1920 и обеспечивает вертикальную ориентацию
  */
 function resizeCanvas() {
     const container = document.getElementById('gameContainer');
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    // Вычисляем масштаб, сохраняя пропорции
-    const scale = Math.min(
-        containerWidth / GAME_WIDTH,
-        containerHeight / GAME_HEIGHT
-    );
+    // Вычисляем масштаб, принудительно сохраняя вертикальное соотношение сторон
+    let scale;
+    
+    // Соотношение сторон игры (9:16 для вертикальной ориентации)
+    const gameAspectRatio = GAME_WIDTH / GAME_HEIGHT;
+    
+    // Соотношение сторон контейнера
+    const containerAspectRatio = containerWidth / containerHeight;
+    
+    // Если контейнер "шире" чем нужно для игры - ограничиваем по высоте
+    if (containerAspectRatio > gameAspectRatio) {
+        scale = containerHeight / GAME_HEIGHT;
+    } else {
+        // Иначе ограничиваем по ширине
+        scale = containerWidth / GAME_WIDTH;
+    }
     
     // Применяем масштаб
-    const scaledWidth = GAME_WIDTH * scale;
-    const scaledHeight = GAME_HEIGHT * scale;
+    const scaledWidth = Math.floor(GAME_WIDTH * scale);
+    const scaledHeight = Math.floor(GAME_HEIGHT * scale);
     
     // Позиционируем canvas по центру
     canvas.width = GAME_WIDTH;
     canvas.height = GAME_HEIGHT;
     canvas.style.width = `${scaledWidth}px`;
     canvas.style.height = `${scaledHeight}px`;
-    canvas.style.left = `${(containerWidth - scaledWidth) / 2}px`;
-    canvas.style.top = `${(containerHeight - scaledHeight) / 2}px`;
+    canvas.style.position = 'absolute';
+    canvas.style.left = `${Math.floor((containerWidth - scaledWidth) / 2)}px`;
+    canvas.style.top = `${Math.floor((containerHeight - scaledHeight) / 2)}px`;
+    
+    // Обновляем позиции элементов интерфейса для соответствия canvas
+    document.getElementById('uiOverlay').style.width = `${scaledWidth}px`;
+    document.getElementById('uiOverlay').style.height = `${scaledHeight}px`;
+    document.getElementById('uiOverlay').style.left = canvas.style.left;
+    document.getElementById('uiOverlay').style.top = canvas.style.top;
+    
+    // Обновить позиции границ игрового поля
+    document.getElementById('gameFieldBorder').style.width = `${scaledWidth}px`;
+    document.getElementById('gameFieldBorder').style.height = `${Math.floor(scaledHeight * 0.75)}px`; // 75% высоты для игрового поля
+    document.getElementById('gameFieldBorder').style.top = `${Math.floor(scaledHeight * 0.15)}px`; // 15% отступ сверху
+    
+    // Обновить положение верхней линии (границы проигрыша)
+    const boundaryLineY = Math.floor(scaledHeight * 0.15); // 15% от высоты (соответствует Y=300 из ТЗ)
+    document.getElementById('boundaryLine').style.top = `${boundaryLineY}px`;
+    document.getElementById('boundaryLine').style.width = `${scaledWidth}px`;
+    
+    console.log(`Canvas resized: ${scaledWidth}x${scaledHeight}, ratio: ${gameAspectRatio.toFixed(2)}`);
 }
 
 /**
  * Обработка клика/тапа
- * Создает новый объект, если игра активна
+ * Создает новый объект, если игра активна и клик был в игровой области
  */
 function handleClick(event) {
     if (gameState.isGameOver) return;
@@ -94,10 +131,12 @@ function handleClick(event) {
     const clickX = (event.clientX - rect.left) * scaleX;
     const clickY = (event.clientY - rect.top) * scaleY;
     
-    // Проверяем, что клик был выше верхней линии (Y < LINE_Y)
-    if (clickY < LINE_Y) {
-        // Создаем новый объект на верхней границе с случайным X
-        createObject(clickX, 0);
+    // В ТЗ сказано, что клик должен быть выше верхней линии
+    // и объекты должны появляться с Y=0
+    if (clickY < LINE_Y && clickX >= 0 && clickX <= GAME_WIDTH) {
+        // Создаем новый объект строго в точке выше верхней линии, но не на самой линии
+        // Используем Y=0 для создания объекта сверху экрана
+        createObject(clickX, 0); // Y=0, чтобы объект создавался сверху
     }
 }
 
@@ -165,11 +204,19 @@ function update(deltaTime) {
  * Игра завершается, если какой-либо объект пересекает верхнюю линию снизу и остается там
  */
 function checkGameOver() {
+    // Игнорируем проверку, если с начала игры прошло менее 1 секунды
+    // Это защищает от мгновенного проигрыша при автоматической генерации объектов
+    if (performance.now() - gameState.gameStartTime < 1000) {
+        return;
+    }
+    
     // Проверяем все объекты
     for (const obj of gameState.objects) {
-        // Проверяем, что объект пересекает верхнюю линию снизу (y - radius < LINE_Y)
-        // и его скорость настолько мала, что он останется выше линии
-        if (obj.y - obj.radius < LINE_Y && Math.abs(obj.velocityY) < 0.5) {
+        // Проверяем, что:
+        // 1. Объект пересекает верхнюю линию (y - radius < LINE_Y)
+        // 2. Объект находится ниже линии (y >= LINE_Y) - это значит, что пересечение идет снизу
+        // 3. Его скорость настолько мала, что он останется выше линии
+        if (obj.y - obj.radius < LINE_Y && obj.y >= LINE_Y && Math.abs(obj.velocityY) < 0.5) {
             gameOver();
             break;
         }
@@ -196,12 +243,15 @@ function gameOver() {
  * Сброс игры для нового раунда
  */
 function resetGame() {
+    // Полный сброс состояния игры
     gameState.score = 0;
     gameState.objects = [];
     gameState.isGameOver = false;
     gameState.bonusCooldown = 0;
     gameState.activeBonus = null;
+    gameState.gameStartTime = performance.now(); // Обновляем время начала игры
     
+    // Обновление UI
     UI.updateScore(gameState.score);
     UI.updateBonuses(gameState.bonusCooldown);
     

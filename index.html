@@ -9,28 +9,30 @@
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
+        
+        <!-- Верхняя часть интерфейса -->
         <div id="uiOverlay">
-            <!-- Верхняя панель интерфейса -->
-            <div id="topInterface">
-                <div id="scoreContainer">Score: <span id="score">0</span></div>
-                <div id="topBonusContainer">
-                    <div id="disintegrateBonus" class="bonus"></div>
-                    <div id="bombBonus" class="bonus"></div>
-                </div>
-                <div id="settingsButton"></div>
+            <!-- Счетчик очков -->
+            <div id="scoreContainer">Score: <span id="score">0</span></div>
+            
+            <!-- Кнопка настроек -->
+            <div id="settingsButton"></div>
+            
+            <!-- Контейнер с бонусами (размещен внизу согласно ТЗ) -->
+            <div id="bonusContainer">
+                <div id="disintegrateBonus" class="bonus" title="Дезинтеграция объектов"></div>
+                <div id="bombBonus" class="bonus" title="Взрывная волна"></div>
             </div>
             
-            <!-- Визуальное выделение границ игрового поля -->
-            <div id="gameAreaBoundaries">
-                <div id="topBoundary" class="boundary"></div>
-                <div id="leftBoundary" class="boundary"></div>
-                <div id="rightBoundary" class="boundary"></div>
-                <div id="bottomBoundary" class="boundary"></div>
-            </div>
+            <!-- Верхняя линия (граница проигрыша) -->
+            <div id="boundaryLine"></div>
+            
+            <!-- Рамка границ игрового поля -->
+            <div id="gameFieldBorder"></div>
         </div>
     </div>
     
-    <!-- Панель настроек с классом hidden для скрытия при запуске -->
+    <!-- Панель настроек (теперь скрыта по умолчанию) -->
     <div id="settingsPanel" class="hidden">
         <div class="settingsHeader">
             <h2>Настройки</h2>
