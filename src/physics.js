@@ -7,9 +7,9 @@
 // Константы физики
 // Изменение констант физики для улучшения механики слияния
 const GRAVITY = 0.5;        // Сила гравитации (оставляем без изменений)
-const BOUNCE = 0.4;         // Коэффициент отскока - УМЕНЬШЕН с 0.7 до 0.4
+const BOUNCE = 0.35;        // Коэффициент отскока - УМЕНЬШЕН с 0.4 до 0.35
 const FRICTION = 0.98;      // Трение при движении (оставляем без изменений)
-const MERGE_TIMER = 2;     // Время в мс для слияния - УМЕНЬШЕНО с 500 до 50
+const MERGE_TIMER = 2;     // Время в мс для слияния
 
 // Типы фигур
 const SHAPES = ['circle', 'square', 'triangle', 'oval', 'diamond'];
@@ -63,20 +63,39 @@ class Physics {
         return object;
     }
 
-    // Новый метод для определения стабильного (естественного) угла фигуры
+    // Метод для определения стабильного (естественного) угла фигуры
     getStableAngle(obj) {
-        // Для квадрата/прямоугольника/ромба стабильные углы кратны 90° (π/2)
-        if (obj.shapeType === 'square' || obj.shapeType === 'diamond') {
+        // Для квадрата/прямоугольника стабильные углы кратны 90° (π/2)
+        if (obj.shapeType === 'square') {
             // Находим ближайший угол, кратный 90°
             return Math.round(obj.rotation / (Math.PI/2)) * (Math.PI/2);
         }
         
-        // Для круга и овала любой угол стабилен
-        if (obj.shapeType === 'circle' || obj.shapeType === 'oval') {
+        // Для ромба стабильные углы кратны 45° (π/4)
+        if (obj.shapeType === 'diamond') {
+            // Находим ближайший угол, кратный 45°
+            return Math.round(obj.rotation / (Math.PI/4)) * (Math.PI/4);
+        }
+        
+        // Для круга любой угол стабилен
+        if (obj.shapeType === 'circle') {
             return obj.rotation;
         }
         
-        // Для треугольника стабильный угол - когда основание внизу
+        // Для овала стабильные углы - 0 и 90° (0 и π/2)
+        if (obj.shapeType === 'oval') {
+            // Основание овала предпочтительно горизонтальное
+            const angleModPi = obj.rotation % Math.PI;
+            if (angleModPi < Math.PI/4 || angleModPi > 3*Math.PI/4) {
+                // Ближе к 0° или 180°
+                return Math.round(obj.rotation / Math.PI) * Math.PI;
+            } else {
+                // Ближе к 90° или 270°
+                return (Math.floor(obj.rotation / Math.PI) * Math.PI) + Math.PI/2;
+            }
+        }
+        
+        // Для треугольника стабильный угол - когда основание внизу (0 или π)
         if (obj.shapeType === 'triangle') {
             // Приводим к углу 0 или π (основание внизу)
             return Math.round(obj.rotation / Math.PI) * Math.PI;
@@ -85,7 +104,7 @@ class Physics {
         return obj.rotation;
     }
 
-    // Новый метод для определения, находится ли объект на поверхности
+    // Метод для определения, находится ли объект на поверхности в состоянии покоя
     isObjectResting(obj) {
         // Объект на нижней границе экрана
         const onBottom = obj.y + obj.size/2 >= this.gameHeight - 1;
@@ -107,9 +126,15 @@ class Physics {
             }
         }
         
-        // Объект считается "на поверхности", если он на нижней границе или на другом объекте
-        // и его вертикальная скорость близка к нулю
-        return (onBottom || onAnotherObject) && Math.abs(obj.vy) < 0.5;
+        // Объект считается "в покое", если:
+        // 1. Он на нижней границе или на другом объекте
+        // 2. Его вертикальная скорость близка к нулю
+        // 3. Его горизонтальная скорость тоже достаточно мала
+        // 4. Скорость вращения невелика (добавляем новое условие)
+        return (onBottom || onAnotherObject) && 
+               Math.abs(obj.vy) < 0.5 && 
+               Math.abs(obj.vx) < 1.0 && 
+               Math.abs(obj.rotationSpeed) < 0.02;
     }
 
     // Обновление физики всех объектов
@@ -131,11 +156,39 @@ class Physics {
             // Обновляем вращение
             obj.rotation += obj.rotationSpeed;
             
+            // Добавляем постепенное затухание вращения для всех объектов
+            // Коэффициент затухания зависит от типа фигуры
+            let rotationDampingFactor = 0.98; // Базовое затухание
+            
+            // Усиливаем затухание для квадратов и ромбов
+            if (obj.shapeType === 'square' || obj.shapeType === 'diamond') {
+                rotationDampingFactor = 0.94; // Сильное затухание
+            } else if (obj.shapeType === 'triangle') {
+                rotationDampingFactor = 0.96; // Среднее затухание
+            }
+            
+            // Применяем затухание
+            obj.rotationSpeed *= rotationDampingFactor;
+            
+            // Если скорость вращения очень мала, останавливаем вращение полностью
+            if (Math.abs(obj.rotationSpeed) < 0.001) {
+                obj.rotationSpeed = 0;
+            }
+            
+            // Ограничиваем максимальную скорость вращения
+            const maxRotationSpeed = 0.1;
+            if (obj.rotationSpeed > maxRotationSpeed) {
+                obj.rotationSpeed = maxRotationSpeed;
+            } else if (obj.rotationSpeed < -maxRotationSpeed) {
+                obj.rotationSpeed = -maxRotationSpeed;
+            }
+            
             // Проверяем столкновение с границами поля
             this.handleBoundaryCollision(obj);
             
             // Применяем стабилизацию для объектов на поверхности
-            if (this.isObjectResting(obj)) {
+            // или для объектов с высокой скоростью вращения (даже в движении)
+            if (this.isObjectResting(obj) || Math.abs(obj.rotationSpeed) > 0.05) {
                 const stableAngle = this.getStableAngle(obj);
                 const angleDiff = stableAngle - obj.rotation;
                 
@@ -147,11 +200,19 @@ class Physics {
                 // Если есть разница в угле, применяем стабилизирующее вращение
                 if (Math.abs(normalizedDiff) > 0.01) {
                     // Скорость вращения зависит от разницы углов и замедляется при приближении к стабильному положению
-                    obj.rotationSpeed = normalizedDiff * 0.03;
+                    // Используем более сильную стабилизацию для покоящихся объектов
+                    const stabilizationFactor = this.isObjectResting(obj) ? 0.05 : 0.02;
+                    obj.rotationSpeed = normalizedDiff * stabilizationFactor;
                 } else {
-                    // Когда достигнут стабильный угол, фиксируем его и останавливаем вращение
+                    // Когда достигнут стабильный угол, фиксируем его
+                    // Полностью останавливаем вращение только если объект в покое
                     obj.rotation = stableAngle;
-                    obj.rotationSpeed = 0;
+                    if (this.isObjectResting(obj)) {
+                        obj.rotationSpeed = 0;
+                    } else {
+                        // Для движущихся объектов просто уменьшаем вращение
+                        obj.rotationSpeed *= 0.8;
+                    }
                 }
             }
             
@@ -229,21 +290,98 @@ class Physics {
 
     // Обработка столкновения с границами поля
     handleBoundaryCollision(obj) {
+        // Коэффициент отскока с учетом формы объекта
+        let bounceCoefficient = BOUNCE;
+        
+        // Модифицируем коэффициент отскока в зависимости от формы
+        switch (obj.shapeType) {
+            case 'oval':
+                // Овалы отскакивают слабее
+                bounceCoefficient *= 0.85;
+                break;
+            case 'square':
+            case 'diamond':
+                // Квадраты и ромбы - нормальный отскок (без усиления)
+                // Убрано увеличение коэффициента (было bounceCoefficient *= 1.1)
+                break;
+            case 'triangle':
+                // Треугольники - средний отскок
+                bounceCoefficient *= 0.9;
+                break;
+        }
+        
+        // Границы для проверки столкновений (разные для разных форм)
+        let leftBound, rightBound, bottomBound;
+        
+        // Учитываем форму объекта для определения границ
+        switch (obj.shapeType) {
+            case 'circle':
+                leftBound = obj.size / 2;
+                rightBound = this.gameWidth - obj.size / 2;
+                bottomBound = this.gameHeight - obj.size / 2;
+                break;
+            case 'square':
+                // Для квадрата расчет с учетом вращения
+                // Упрощенно, берем как для круга с небольшой корректировкой
+                leftBound = obj.size / 2 * 0.95;
+                rightBound = this.gameWidth - obj.size / 2 * 0.95;
+                bottomBound = this.gameHeight - obj.size / 2 * 0.95;
+                break;
+            case 'oval':
+                // Для овала - полуоси
+                leftBound = obj.size / 2; // по X
+                rightBound = this.gameWidth - obj.size / 2;
+                bottomBound = this.gameHeight - obj.size / 3; // по Y меньше
+                break;
+            case 'triangle':
+                // Для треугольника - примерные границы
+                leftBound = obj.size / 2 * 0.9;
+                rightBound = this.gameWidth - obj.size / 2 * 0.9;
+                bottomBound = this.gameHeight - obj.size / 2 * 0.8;
+                break;
+            case 'diamond':
+                // Для ромба - примерные границы
+                leftBound = obj.size / 2 * 0.9;
+                rightBound = this.gameWidth - obj.size / 2 * 0.9;
+                bottomBound = this.gameHeight - obj.size / 2 * 0.9;
+                break;
+            default:
+                // По умолчанию как для круга
+                leftBound = obj.size / 2;
+                rightBound = this.gameWidth - obj.size / 2;
+                bottomBound = this.gameHeight - obj.size / 2;
+        }
+        
         // Столкновение с левой и правой границей
-        if (obj.x - obj.size / 2 < 0) {
-            obj.x = obj.size / 2;
-            obj.vx = -obj.vx * BOUNCE;
-        } else if (obj.x + obj.size / 2 > this.gameWidth) {
-            obj.x = this.gameWidth - obj.size / 2;
-            obj.vx = -obj.vx * BOUNCE;
+        if (obj.x < leftBound) {
+            obj.x = leftBound;
+            obj.vx = -obj.vx * bounceCoefficient;
+            // Добавляем случайное вращение, кроме круга
+            if (obj.shapeType !== 'circle') {
+                // Уменьшено с 0.05 до 0.015
+                obj.rotationSpeed += (Math.random() - 0.5) * 0.015;
+            }
+        } else if (obj.x > rightBound) {
+            obj.x = rightBound;
+            obj.vx = -obj.vx * bounceCoefficient;
+            // Добавляем случайное вращение, кроме круга
+            if (obj.shapeType !== 'circle') {
+                // Уменьшено с 0.05 до 0.015
+                obj.rotationSpeed += (Math.random() - 0.5) * 0.015;
+            }
         }
         
         // Столкновение с нижней границей
-        if (obj.y + obj.size / 2 > this.gameHeight) {
-            obj.y = this.gameHeight - obj.size / 2;
-            obj.vy = -obj.vy * BOUNCE;
+        if (obj.y > bottomBound) {
+            obj.y = bottomBound;
+            obj.vy = -obj.vy * bounceCoefficient;
             // Применяем трение при отскоке от пола
             obj.vx *= FRICTION;
+            // Добавляем случайное вращение, кроме круга (еще меньше для нижней границы)
+            if (obj.shapeType !== 'circle') {
+                // Уменьшено с 0.03 до 0.01
+                obj.rotationSpeed += (Math.random() - 0.5) * 0.01;
+            }
         }
         
         // Объекты могут пролетать через верхнюю границу, но не через линию проигрыша
@@ -252,13 +390,144 @@ class Physics {
 
     // Проверка столкновения между двумя объектами (используем упрощенный круговой коллайдер)
     checkCollision(obj1, obj2) {
-        // Для упрощения используем круговую коллизию независимо от формы
+        // Для разных типов фигур используем специфичные проверки коллизий
+        switch (obj1.shapeType) {
+            case 'circle':
+                return this.checkCircleCollision(obj1, obj2);
+            case 'square':
+                return this.checkSquareCollision(obj1, obj2);
+            case 'triangle':
+                return this.checkTriangleCollision(obj1, obj2);
+            case 'oval':
+                return this.checkOvalCollision(obj1, obj2);
+            case 'diamond':
+                return this.checkDiamondCollision(obj1, obj2);
+            default:
+                // Если тип неизвестен, используем круговую коллизию
+                return this.checkCircleCollision(obj1, obj2);
+        }
+    }
+
+    // Проверка коллизии с кругом
+    checkCircleCollision(obj1, obj2) {
         const dx = obj2.x - obj1.x;
         const dy = obj2.y - obj1.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
+        // Эффективный радиус для объекта obj2 в зависимости от его типа
+        let effectiveRadius2;
+        
+        switch (obj2.shapeType) {
+            case 'circle':
+                effectiveRadius2 = obj2.size / 2;
+                break;
+            case 'square':
+                // Для квадрата используем радиус описанной окружности
+                effectiveRadius2 = obj2.size / 2 * Math.sqrt(2) * 0.8;
+                break;
+            case 'triangle':
+                // Для треугольника используем примерный радиус
+                effectiveRadius2 = obj2.size / 2 * 0.9;
+                break;
+            case 'oval':
+                // Для овала используем среднее между осями
+                effectiveRadius2 = obj2.size / 2 * 0.85;
+                break;
+            case 'diamond':
+                // Для ромба радиус описанной окружности
+                effectiveRadius2 = obj2.size / 2 * 0.9;
+                break;
+            default:
+                effectiveRadius2 = obj2.size / 2;
+        }
+        
         // Коллизия происходит, когда расстояние меньше суммы радиусов
-        return distance < (obj1.size / 2 + obj2.size / 2);
+        return distance < (obj1.size / 2 + effectiveRadius2);
+    }
+
+    // Проверка коллизии с квадратом
+    checkSquareCollision(obj1, obj2) {
+        // Для квадрата проверяем коллизию с другими объектами
+        switch (obj2.shapeType) {
+            case 'circle':
+                return this.checkCircleCollision(obj2, obj1);
+            case 'square':
+                // Упрощенная проверка AABB коллизии для двух квадратов
+                const halfSize1 = obj1.size / 2;
+                const halfSize2 = obj2.size / 2;
+                
+                return Math.abs(obj1.x - obj2.x) < (halfSize1 + halfSize2) * 0.9 &&
+                       Math.abs(obj1.y - obj2.y) < (halfSize1 + halfSize2) * 0.9;
+            default:
+                // Для других форм используем приближенную коллизию
+                return this.checkCircleCollision(obj2, obj1);
+        }
+    }
+
+    // Проверка коллизии с треугольником
+    checkTriangleCollision(obj1, obj2) {
+        // Упрощенная реализация, используем круговую коллизию с коррекцией
+        switch (obj2.shapeType) {
+            case 'circle':
+                return this.checkCircleCollision(obj2, obj1);
+            case 'triangle':
+                // Для двух треугольников используем модифицированную круговую коллизию
+                const dx = obj2.x - obj1.x;
+                const dy = obj2.y - obj1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                return distance < (obj1.size / 2 + obj2.size / 2) * 0.85;
+            default:
+                // Для других форм используем приближенную коллизию
+                return this.checkCircleCollision(obj2, obj1);
+        }
+    }
+
+    // Проверка коллизии с овалом
+    checkOvalCollision(obj1, obj2) {
+        // Для овала используем эллиптическую коллизию
+        const dx = obj2.x - obj1.x;
+        const dy = obj2.y - obj1.y;
+        
+        // Для овала главная ось по x, второстепенная по y
+        const a = obj1.size / 2;      // полуось по x
+        const b = obj1.size / 3;      // полуось по y
+        
+        // Нормализуем расстояние для эллипса
+        const normalizedDistance = Math.sqrt((dx * dx) / (a * a) + (dy * dy) / (b * b));
+        
+        switch (obj2.shapeType) {
+            case 'circle':
+                // Для круга с овалом
+                return normalizedDistance < 1 + (obj2.size / 2) / Math.min(a, b);
+            case 'oval':
+                // Для двух овалов - приближенная коллизия
+                const a2 = obj2.size / 2;
+                const b2 = obj2.size / 3;
+                return normalizedDistance < 1 + Math.min(a2, b2) / Math.min(a, b);
+            default:
+                // Для других форм используем приближенную коллизию
+                return this.checkCircleCollision(obj2, obj1);
+        }
+    }
+
+    // Проверка коллизии с ромбом
+    checkDiamondCollision(obj1, obj2) {
+        // Используем упрощенную коллизию, аналогичную квадрату но с меньшим охватом
+        switch (obj2.shapeType) {
+            case 'circle':
+                return this.checkCircleCollision(obj2, obj1);
+            case 'diamond':
+                // Для двух ромбов
+                const dx = obj2.x - obj1.x;
+                const dy = obj2.y - obj1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                return distance < (obj1.size / 2 + obj2.size / 2) * 0.85;
+            default:
+                // Для других форм используем приближенную коллизию
+                return this.checkCircleCollision(obj2, obj1);
+        }
     }
 
     // Разрешение физического столкновения между объектами
@@ -268,12 +537,46 @@ class Physics {
         const dy = obj2.y - obj1.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
+        // Если объекты очень далеко друг от друга, игнорируем
+        if (distance > obj1.size + obj2.size) return;
+        
+        // Коэффициент отскока, который зависит от типов объектов
+        let bounceCoefficient = BOUNCE;
+        
+        // Модифицируем коэффициент отскока в зависимости от форм объектов
+        if ((obj1.shapeType === 'square' && obj2.shapeType === 'square') ||
+            (obj1.shapeType === 'diamond' && obj2.shapeType === 'diamond')) {
+            // Квадраты и ромбы отскакивают с нормальным коэффициентом
+            // Убрано усиление отскока (было bounceCoefficient *= 1.1)
+        } else if (obj1.shapeType === 'oval' || obj2.shapeType === 'oval') {
+            // Овалы имеют меньший отскок
+            bounceCoefficient *= 0.85;
+        } else if (obj1.shapeType === 'triangle' || obj2.shapeType === 'triangle') {
+            // Треугольники имеют немного меньший отскок из-за острых углов
+            bounceCoefficient *= 0.9;
+        }
+        
         // Нормализованный вектор направления
         const nx = dx / distance;
         const ny = dy / distance;
         
-        // Расчет перекрытия объектов
-        const overlap = (obj1.size / 2 + obj2.size / 2) - distance;
+        // Расчет перекрытия объектов с учетом их форм
+        let overlap;
+        
+        // Используем форму для определения перекрытия
+        if (obj1.shapeType === 'circle' && obj2.shapeType === 'circle') {
+            // Для двух кругов - стандартное перекрытие
+            overlap = (obj1.size / 2 + obj2.size / 2) - distance;
+        } else if (obj1.shapeType === 'oval' || obj2.shapeType === 'oval') {
+            // Для овалов учитываем эллиптическую форму
+            overlap = ((obj1.size / 2 + obj2.size / 2) - distance) * 0.85;
+        } else {
+            // Для других сочетаний форм - с корректировкой
+            overlap = ((obj1.size / 2 + obj2.size / 2) - distance) * 0.9;
+        }
+        
+        // Если перекрытие отрицательное, объекты не пересекаются
+        if (overlap <= 0) return;
         
         // Корректируем позиции, чтобы устранить перекрытие
         obj1.x -= nx * overlap / 2;
@@ -290,13 +593,24 @@ class Physics {
         if (dotProduct >= 0) return;
         
         // Импульс от столкновения
-        const impulse = (-(1 + BOUNCE) * dotProduct) / 2;
+        const impulse = (-(1 + bounceCoefficient) * dotProduct) / 2;
         
         // Применяем импульс к обоим объектам
         obj1.vx -= impulse * nx;
         obj1.vy -= impulse * ny;
         obj2.vx += impulse * nx;
         obj2.vy += impulse * ny;
+        
+        // Добавляем случайное вращение, зависящее от формы объекта
+        // Уменьшаем величину случайного вращения для уменьшения регдоления
+        if (obj1.shapeType !== 'circle') {
+            // Уменьшено с 0.05 до 0.015
+            obj1.rotationSpeed += (Math.random() - 0.5) * 0.015;
+        }
+        if (obj2.shapeType !== 'circle') {
+            // Уменьшено с 0.05 до 0.015
+            obj2.rotationSpeed += (Math.random() - 0.5) * 0.015;
+        }
     }
 
     // Объединение двух объектов
