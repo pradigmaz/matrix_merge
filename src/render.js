@@ -178,50 +178,11 @@ class Renderer {
         this.gameCtx.shadowColor = this.colorScheme.objectStroke;
         this.gameCtx.shadowBlur = 10;
         
-        // Отрисовываем объект в зависимости от его типа
-        switch (obj.shapeType) {
-            case 'circle':
-                this.gameCtx.beginPath();
-                this.gameCtx.arc(0, 0, obj.size / 2, 0, Math.PI * 2);
-                this.gameCtx.fill();
-                this.gameCtx.stroke();
-                break;
-                
-            case 'square':
-                this.gameCtx.beginPath();
-                this.gameCtx.rect(-obj.size / 2, -obj.size / 2, obj.size, obj.size);
-                this.gameCtx.fill();
-                this.gameCtx.stroke();
-                break;
-                
-            case 'triangle':
-                this.gameCtx.beginPath();
-                this.gameCtx.moveTo(0, -obj.size / 2);
-                this.gameCtx.lineTo(-obj.size / 2, obj.size / 2);
-                this.gameCtx.lineTo(obj.size / 2, obj.size / 2);
-                this.gameCtx.closePath();
-                this.gameCtx.fill();
-                this.gameCtx.stroke();
-                break;
-                
-            case 'oval':
-                this.gameCtx.beginPath();
-                this.gameCtx.ellipse(0, 0, obj.size / 2, obj.size / 3, 0, 0, Math.PI * 2);
-                this.gameCtx.fill();
-                this.gameCtx.stroke();
-                break;
-                
-            case 'diamond':
-                this.gameCtx.beginPath();
-                this.gameCtx.moveTo(0, -obj.size / 2);
-                this.gameCtx.lineTo(obj.size / 2, 0);
-                this.gameCtx.lineTo(0, obj.size / 2);
-                this.gameCtx.lineTo(-obj.size / 2, 0);
-                this.gameCtx.closePath();
-                this.gameCtx.fill();
-                this.gameCtx.stroke();
-                break;
-        }
+        // Отрисовываем круг (единственный тип объекта)
+        this.gameCtx.beginPath();
+        this.gameCtx.arc(0, 0, obj.size / 2, 0, Math.PI * 2);
+        this.gameCtx.fill();
+        this.gameCtx.stroke();
         
         // Отображаем уровень объекта в центре
         this.gameCtx.fillStyle = '#fff';
