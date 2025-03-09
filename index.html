@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Drop - Merge Game</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Шрифт для неонового текста -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Основной canvas для игры -->
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- Canvas для фонового матричного дождя -->
+        <canvas id="background-canvas"></canvas>
+        
+        <!-- Панель настроек (изначально скрыта) -->
+        <div id="settings-panel" class="hidden">
+            <div class="settings-header">
+                <h2>Настройки</h2>
+                <button id="close-settings">X</button>
+            </div>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label for="music-volume">Музыка:</label>
+                    <input type="range" id="music-volume" min="0" max="100" value="50">
+                </div>
+                <div class="setting-item">
+                    <label for="sound-volume">Звуки:</label>
+                    <input type="range" id="sound-volume" min="0" max="100" value="50">
+                </div>
+                <div class="setting-item">
+                    <label>Цветовая схема:</label>
+                    <div class="color-scheme-buttons">
+                        <button data-scheme="classic" class="active">Классическая</button>
+                        <button data-scheme="cyberpunk">Киберпанк</button>
+                        <button data-scheme="chaos">Хаос</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключение скриптов -->
+    <script src="src/physics.js"></script>
+    <script src="src/render.js"></script>
+    <script src="src/ui.js"></script>
+    <script src="src/ads.js"></script>
+    <script src="src/game.js"></script>
+</body>
+</html>
