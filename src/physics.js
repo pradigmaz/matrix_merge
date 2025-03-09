@@ -316,7 +316,6 @@ class Physics {
         // Новый уровень - на 1 больше
         const newLevel = obj1.level + 1;
         
-        // Через 300 мс (время анимации) создаем новый объект и удаляем старые
         setTimeout(() => {
             // Создаем новый объект
             this.createObject(newX, newY, newLevel);
@@ -328,8 +327,14 @@ class Physics {
             // Сбрасываем флаг слияния
             this.mergeInProgress = false;
             
-            // Возвращаем очки за слияние (уровень * 10)
-            return newLevel * 10;
+            // Начисляем очки за слияние
+            const points = newLevel * 10;
+            if (this.game && typeof this.game.updateScore === 'function') {
+                this.game.updateScore(points);
+                console.log(`Начислено ${points} очков за слияние объектов уровня ${newLevel-1} в объект уровня ${newLevel}`);
+            } else {
+                console.error('Не удалось обновить счет: метод updateScore недоступен');
+            }
         }, 300);
         
         // Возвращаем 0, так как очки будут начислены позже
