@@ -9,7 +9,7 @@
 const GRAVITY = 0.5;        // Сила гравитации (оставляем без изменений)
 const BOUNCE = 0.4;         // Коэффициент отскока - УМЕНЬШЕН с 0.7 до 0.4
 const FRICTION = 0.98;      // Трение при движении (оставляем без изменений)
-const MERGE_TIMER = 15;     // Время в мс для слияния - УМЕНЬШЕНО с 500 до 50
+const MERGE_TIMER = 2;     // Время в мс для слияния - УМЕНЬШЕНО с 500 до 50
 
 // Типы фигур
 const SHAPES = ['circle', 'square', 'triangle', 'oval', 'diamond'];
@@ -53,8 +53,8 @@ class Physics {
             size,
             merging: false,       // Флаг процесса слияния объекта
             mergePair: null,      // Ссылка на объект, с которым происходит слияние
-            rotation: Math.random() * Math.PI * 2,  // Случайный начальный угол поворота
-            rotationSpeed: (Math.random() - 0.5) * 0.1,  // Скорость вращения
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: 0,  // Вращение полностью отключено
             wasBelow: y > this.topLine  // Флаг, что объект был ниже линии
         };
         
