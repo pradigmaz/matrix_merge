@@ -1,588 +1,362 @@
 /**
- * physics.js
- * Отвечает за физику игры: гравитацию, коллизии, 
- * слияние объектов и прочие физические аспекты
+ * physics.js - Физика игры Matrix Drop
+ * Отвечает за физику падения, обнаружение столкновений и слияния объектов
  */
 
-// Константы физики
-// Более сбалансированные значения для устранения регдоления и проблем со слиянием
-const GRAVITY = 0.5;        // Сила гравитации (без изменений)
-const BOUNCE = 0.1;         // Уменьшено до 0.1
-const FRICTION = 0.98;      // Трение при движении (без изменений)
-const VELOCITY_DAMPING = 0.75; // Уменьшено до 0.75
-const MERGE_TIMER = 150;    // Увеличено до 150
-const MIN_COLLISION_THRESHOLD = 0.5; // Увеличено до 0.5
-
-// Типы фигур
-const SHAPES = ['circle'];
-
-// Класс для обработки физики объектов
-class Physics {
-    constructor(gameWidth, gameHeight, topLine, game) {
-        this.gameWidth = gameWidth;       // Ширина игрового поля
-        this.gameHeight = gameHeight;     // Высота игрового поля
-        this.topLine = topLine;           // Верхняя граница (линия проигрыша)
-        this.game = game;                 // Ссылка на экземпляр Game для обновления счета
-        this.objects = [];                // Массив всех объектов в игре
-        this.mergeInProgress = false;     // Флаг процесса слияния (для предотвращения множественных слияний)
-        this.mergeTimers = new Map();     // Таймеры для отслеживания длительных контактов между объектами
-        this.collisionCooldowns = new Map(); // Добавлено для кулдауна столкновений
-    }
-
-    // Создание нового объекта с заданным уровнем
-    createObject(x, y, level = 1) {
-        // Используем только круг
-        const shapeType = 'circle';
+// Объект с методами для физики
+const Physics = (() => {
+    // Константы физики
+    const GRAVITY = 0.2;            // Гравитационное ускорение
+    const BOUNCE_FACTOR = 0.7;      // Коэффициент отскока (0 - нет отскока, 1 - идеальный отскок)
+    const DAMPING = 0.98;           // Затухание скорости (сопротивление среды)
+    const MIN_VELOCITY = 0.1;       // Минимальная скорость для движения
+    const MIN_ROTATION_SPEED = 0.001; // Минимальная скорость вращения
+    const MERGE_DELAY = 500;        // Задержка слияния (мс) при длительном контакте
+    const COLLISION_THRESHOLD = 0.75; // Порог пересечения для слияния (75% пересечения)
+    
+    // Уникальный идентификатор для объектов
+    let nextId = 1;
+    
+    // Слияния, которые ожидают подтверждения с задержкой
+    const pendingMerges = [];
+    
+    /**
+     * Создание нового объекта с физическими свойствами
+     */
+    function createObject(x, y, level = 1) {
+        // Базовый радиус для уровня 1
+        const baseRadius = 15;
         
-        // Базовый размер для уровня 1
-        const baseSize = 150;
+        // Формула увеличения: +20% на каждый уровень
+        const radius = baseRadius * Math.pow(1.2, level - 1);
         
-        // Увеличиваем размер с каждым уровнем (на 20%)
-        let size = baseSize;
-        for (let i = 1; i < level; i++) {
-            size *= 1.2;
-        }
-        
-        // Максимальный размер объекта
-        size = Math.min(size, 700);
-        
-        // Создаем объект
-        const object = {
+        return {
+            id: nextId++,
             x,
             y,
-            vx: 0,                // Скорость по X
-            vy: 0,                // Скорость по Y
             level,
-            shapeType,
-            size,
-            merging: false,       // Флаг процесса слияния объекта
-            mergePair: null,      // Ссылка на объект, с которым происходит слияние
-            rotation: Math.random() * Math.PI * 2,
-            rotationSpeed: 0,
-            wasBelow: y > this.topLine  // Флаг, что объект был ниже линии
+            radius,
+            velocityX: 0,
+            velocityY: 0,
+            rotation: 0,
+            rotationSpeed: (Math.random() - 0.5) * 0.1,
+            lastCollisionTime: 0
         };
-        
-        this.objects.push(object);
-        return object;
     }
-
-    // Метод для определения стабильного (естественного) угла фигуры
-    getStableAngle(obj) {
-        // Для квадрата/прямоугольника стабильные углы кратны 90° (π/2)
-        if (obj.shapeType === 'square') {
-            // Находим ближайший угол, кратный 90°
-            return Math.round(obj.rotation / (Math.PI/2)) * (Math.PI/2);
-        }
-        
-        // Для ромба стабильные углы кратны 45° (π/4)
-        if (obj.shapeType === 'diamond') {
-            // Находим ближайший угол, кратный 45°
-            return Math.round(obj.rotation / (Math.PI/4)) * (Math.PI/4);
-        }
-        
-        // Для круга любой угол стабилен
-        if (obj.shapeType === 'circle') {
-            return obj.rotation;
-        }
-        
-        // Для овала стабильные углы - 0 и 90° (0 и π/2)
-        if (obj.shapeType === 'oval') {
-            // Основание овала предпочтительно горизонтальное
-            const angleModPi = obj.rotation % Math.PI;
-            if (angleModPi < Math.PI/4 || angleModPi > 3*Math.PI/4) {
-                // Ближе к 0° или 180°
-                return Math.round(obj.rotation / Math.PI) * Math.PI;
-            } else {
-                // Ближе к 90° или 270°
-                return (Math.floor(obj.rotation / Math.PI) * Math.PI) + Math.PI/2;
-            }
-        }
-        
-        // Для треугольника стабильный угол - когда основание внизу (0 или π)
-        if (obj.shapeType === 'triangle') {
-            // Приводим к углу 0 или π (основание внизу)
-            return Math.round(obj.rotation / Math.PI) * Math.PI;
-        }
-        
-        return obj.rotation;
-    }
-
-    // Метод для определения, находится ли объект на поверхности в состоянии покоя
-    isObjectResting(obj) {
-        // Объект на нижней границе экрана
-        const onBottom = obj.y + obj.size/2 >= this.gameHeight - 1;
-        
-        // Объект на другом объекте
-        let onAnotherObject = false;
-        for (const other of this.objects) {
-            if (obj !== other && !other.merging && !obj.merging) {
-                // Проверяем, находится ли объект сверху на другом объекте
-                const dx = obj.x - other.x;
-                const dy = obj.y - other.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    /**
+     * Обновление всех объектов с учетом физики
+     */
+    function updateObjects(objects, deltaTime) {
+        // Проверка и удаление устаревших ожидающих слияний
+        const currentTime = performance.now();
+        for (let i = pendingMerges.length - 1; i >= 0; i--) {
+            if (currentTime - pendingMerges[i].startTime >= MERGE_DELAY) {
+                const { obj1Id, obj2Id } = pendingMerges[i];
                 
-                // Если объекты касаются и наш объект выше другого
-                if (distance < (obj.size/2 + other.size/2 + 1) && obj.y < other.y && Math.abs(dy) < obj.size/3) {
-                    onAnotherObject = true;
-                    break;
+                // Находим объекты по ID
+                const obj1Index = objects.findIndex(obj => obj.id === obj1Id);
+                const obj2Index = objects.findIndex(obj => obj.id === obj2Id);
+                
+                // Если оба объекта все еще существуют, выполняем слияние
+                if (obj1Index !== -1 && obj2Index !== -1) {
+                    // Проверяем, что объекты все еще пересекаются
+                    if (checkCollision(objects[obj1Index], objects[obj2Index])) {
+                        mergeTwoObjects(objects, obj1Index, obj2Index);
+                    }
                 }
+                
+                // Удаляем ожидающее слияние из списка
+                pendingMerges.splice(i, 1);
             }
         }
         
-        // Объект считается "в покое", если:
-        // 1. Он на нижней границе или на другом объекте
-        // 2. Его вертикальная скорость очень мала
-        // 3. Его горизонтальная скорость тоже очень мала
-        // 4. Скорость вращения минимальна
-        return (onBottom || onAnotherObject) && 
-               Math.abs(obj.vy) < 0.1 &&   // Уменьшено до 0.1
-               Math.abs(obj.vx) < 0.2 &&   // Уменьшено до 0.2
-               Math.abs(obj.rotationSpeed) < 0.005; // Уменьшено до 0.005
-    }
-
-    // Обновление физики всех объектов
-    update(deltaTime) {
-        // Ограничение deltaTime для стабильности физики
-        const cappedDeltaTime = Math.min(deltaTime, 33);
-        
-        // Обработка всех объектов
-        for (let i = 0; i < this.objects.length; i++) {
-            const obj = this.objects[i];
+        // Обновляем каждый объект
+        for (let i = 0; i < objects.length; i++) {
+            const obj = objects[i];
             
-            // Пропускаем объекты в процессе слияния
-            if (obj.merging) continue;
+            // Применение гравитации
+            obj.velocityY += GRAVITY;
             
-            // Применяем гравитацию
-            obj.vy += GRAVITY;
+            // Обновление позиции
+            obj.x += obj.velocityX;
+            obj.y += obj.velocityY;
             
-            // Обновляем позицию
-            obj.x += obj.vx;
-            obj.y += obj.vy;
-            
-            // Обновляем вращение
+            // Обновление вращения
             obj.rotation += obj.rotationSpeed;
             
-            // Добавляем постепенное затухание вращения
-            obj.rotationSpeed *= 0.98; // Затухание вращения
-            
-            // Если скорость вращения очень мала, останавливаем вращение полностью
-            if (Math.abs(obj.rotationSpeed) < 0.005) {
+            // Затухание вращения
+            obj.rotationSpeed *= DAMPING;
+            if (Math.abs(obj.rotationSpeed) < MIN_ROTATION_SPEED) {
                 obj.rotationSpeed = 0;
             }
             
-            // Проверяем столкновение с границами поля
-            this.handleBoundaryCollision(obj);
+            // Проверка столкновений со стенками
+            handleWallCollisions(obj);
             
-            // Если объект в состоянии покоя, полностью останавливаем его
-            if (this.isObjectResting(obj)) {
-                obj.vx = 0;
-                obj.vy = 0;
-                obj.rotationSpeed = 0;
-                obj.rotation = this.getStableAngle(obj);
-            } else {
-                // Дополнительное демпфирование скорости для уменьшения колебаний
-                if (Math.abs(obj.vx) < 0.5) obj.vx *= 0.9;
-                if (Math.abs(obj.vy) < 0.5) obj.vy *= 0.9;
-            }
+            // Затухание скорости (сопротивление среды)
+            obj.velocityX *= DAMPING;
+            obj.velocityY *= DAMPING;
             
-            // Отмечаем, если объект оказался ниже линии
-            if (obj.y > this.topLine + obj.size / 2) {
-                obj.wasBelow = true;
-            }
-            
-            // Проверяем коллизии с другими объектами
-            for (let j = i + 1; j < this.objects.length; j++) {
-                const other = this.objects[j];
-                
-                // Пропускаем объекты в процессе слияния
-                if (other.merging) continue;
-                
-                // Проверяем коллизию
-                if (this.checkCollision(obj, other)) {
-                    // Обрабатываем физическую коллизию
-                    this.resolveCollision(obj, other);
-                    
-                    // Если уровни объектов совпадают, запускаем таймер слияния или выполняем слияние
-                    if (obj.level === other.level) {
-                        // Создаем уникальный ключ для пары объектов
-                        const pairId = `${Math.min(i, j)}_${Math.max(i, j)}`;
-                        
-                        // Проверяем коллизию с увеличенным радиусом для объектов одинакового уровня
-                        const dx = other.x - obj.x;
-                        const dy = other.y - obj.y;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        // Увеличиваем порог слияния на 20% для более надежного объединения
-                        const mergeThreshold = (obj.size / 2 + other.size / 2) * 1.2;
-                        
-                        if (distance < mergeThreshold) {
-                            // Если таймер для этой пары еще не существует, создаем его
-                            if (!this.mergeTimers.has(pairId)) {
-                                this.mergeTimers.set(pairId, {
-                                    time: 0,
-                                    obj1: obj,
-                                    obj2: other
-                                });
-                            } else {
-                                // Увеличиваем время контакта
-                                const timer = this.mergeTimers.get(pairId);
-                                timer.time += cappedDeltaTime;
-                                
-                                // Если время контакта достаточное, выполняем слияние
-                                if (timer.time >= MERGE_TIMER && !this.mergeInProgress) {
-                                    this.mergeObjects(obj, other);
-                                    this.mergeTimers.delete(pairId);
-                                }
-                            }
-                        } else {
-                            // Если объекты не в контакте, удаляем таймер слияния для этой пары
-                            // Но только если они далеко друг от друга, чтобы избежать "дребезга"
-                            // Уменьшаем множитель, чтобы таймер не сбрасывался так быстро
-                            if (this.mergeTimers.has(pairId) && distance > mergeThreshold * 1.3) {
-                                this.mergeTimers.delete(pairId);
-                            }
-                        }
-                    }
-                } else {
-                    // Если объекты не в контакте, удаляем таймер слияния для этой пары
-                    const pairId = `${Math.min(i, j)}_${Math.max(i, j)}`;
-                    if (this.mergeTimers.has(pairId)) {
-                        // Сбрасываем таймер не сразу, а пропорционально накопленному времени
-                        // Это даст шанс объектам немного отдалиться и снова сойтись
-                        const timer = this.mergeTimers.get(pairId);
-                        timer.time -= cappedDeltaTime * 2; // Уменьшаем вдвое быстрее
-                        
-                        // Если таймер исчерпан полностью, удаляем его
-                        if (timer.time <= 0) {
-                            this.mergeTimers.delete(pairId);
-                        }
-                    }
-                }
-            }
+            // Остановка при малой скорости для оптимизации
+            if (Math.abs(obj.velocityX) < MIN_VELOCITY) obj.velocityX = 0;
+            if (Math.abs(obj.velocityY) < MIN_VELOCITY) obj.velocityY = 0;
         }
         
-        // Удаляем объекты, помеченные для удаления
-        this.objects = this.objects.filter(obj => !obj.toRemove);
+        // Проверка столкновений между объектами
+        handleObjectCollisions(objects);
+        
+        return { merges: 0, points: 0 }; // Обновится в checkMerges
     }
-
-    // Обработка столкновения с границами поля
-    handleBoundaryCollision(obj) {
-        // Коэффициент отскока с учетом формы объекта
-        let bounceCoefficient = BOUNCE;
+    
+    /**
+     * Проверка столкновений со стенками и границами
+     */
+    function handleWallCollisions(obj) {
+        // Константы игрового поля
+        const LEFT_WALL = 0;
+        const RIGHT_WALL = 1080;
+        const BOTTOM_WALL = 1720;
         
-        // Модифицируем коэффициент отскока в зависимости от формы
-        switch (obj.shapeType) {
-            case 'oval':
-                // Овалы отскакивают слабее
-                bounceCoefficient *= 0.85;
-                break;
-            case 'square':
-            case 'diamond':
-                // Квадраты и ромбы - нормальный отскок
-                break;
-            case 'triangle':
-                // Треугольники - средний отскок
-                bounceCoefficient *= 0.9;
-                break;
+        // Столкновение с левой стенкой
+        if (obj.x - obj.radius < LEFT_WALL) {
+            obj.x = LEFT_WALL + obj.radius;
+            obj.velocityX = -obj.velocityX * BOUNCE_FACTOR;
         }
         
-        // Границы для проверки столкновений (разные для разных форм)
-        let leftBound, rightBound, bottomBound;
-        
-        // Учитываем форму объекта для определения границ
-        switch (obj.shapeType) {
-            case 'circle':
-                leftBound = obj.size / 2;
-                rightBound = this.gameWidth - obj.size / 2;
-                bottomBound = this.gameHeight - obj.size / 2;
-                break;
-            case 'square':
-                // Для квадрата расчет с учетом вращения
-                // Упрощенно, берем как для круга с небольшой корректировкой
-                leftBound = obj.size / 2 * 0.95;
-                rightBound = this.gameWidth - obj.size / 2 * 0.95;
-                bottomBound = this.gameHeight - obj.size / 2 * 0.95;
-                break;
-            case 'oval':
-                // Для овала - полуоси
-                leftBound = obj.size / 2; // по X
-                rightBound = this.gameWidth - obj.size / 2;
-                bottomBound = this.gameHeight - obj.size / 3; // по Y меньше
-                break;
-            case 'triangle':
-                // Для треугольника - примерные границы
-                leftBound = obj.size / 2 * 0.9;
-                rightBound = this.gameWidth - obj.size / 2 * 0.9;
-                bottomBound = this.gameHeight - obj.size / 2 * 0.8;
-                break;
-            case 'diamond':
-                // Для ромба - примерные границы
-                leftBound = obj.size / 2 * 0.9;
-                rightBound = this.gameWidth - obj.size / 2 * 0.9;
-                bottomBound = this.gameHeight - obj.size / 2 * 0.9;
-                break;
-            default:
-                // По умолчанию как для круга
-                leftBound = obj.size / 2;
-                rightBound = this.gameWidth - obj.size / 2;
-                bottomBound = this.gameHeight - obj.size / 2;
-        }
-        
-        // Столкновение с левой и правой границей
-        if (obj.x < leftBound) {
-            obj.x = leftBound;
-            obj.vx = -obj.vx * bounceCoefficient;
-            // Добавляем случайное вращение, кроме круга (уменьшенное)
-            if (obj.shapeType !== 'circle') {
-                // Уменьшено с 0.015 до 0.005
-                obj.rotationSpeed += (Math.random() - 0.5) * 0.005;
-            }
-        } else if (obj.x > rightBound) {
-            obj.x = rightBound;
-            obj.vx = -obj.vx * bounceCoefficient;
-            // Добавляем случайное вращение, кроме круга (уменьшенное)
-            if (obj.shapeType !== 'circle') {
-                // Уменьшено с 0.015 до 0.005
-                obj.rotationSpeed += (Math.random() - 0.5) * 0.005;
-            }
+        // Столкновение с правой стенкой
+        if (obj.x + obj.radius > RIGHT_WALL) {
+            obj.x = RIGHT_WALL - obj.radius;
+            obj.velocityX = -obj.velocityX * BOUNCE_FACTOR;
         }
         
         // Столкновение с нижней границей
-        if (obj.y > bottomBound) {
-            obj.y = bottomBound;
-            obj.vy = -obj.vy * bounceCoefficient;
-            // Применяем трение при отскоке от пола
-            obj.vx *= FRICTION;
-            // Добавляем случайное вращение, кроме круга (еще меньше для нижней границы)
-            if (obj.shapeType !== 'circle') {
-                // Уменьшено с 0.01 до 0.003
-                obj.rotationSpeed += (Math.random() - 0.5) * 0.003;
+        if (obj.y + obj.radius > BOTTOM_WALL) {
+            obj.y = BOTTOM_WALL - obj.radius;
+            obj.velocityY = -obj.velocityY * BOUNCE_FACTOR;
+            
+            // Добавляем случайный импульс по X при отскоке от дна
+            // для более интересного поведения
+            if (Math.abs(obj.velocityY) > 1) {
+                obj.velocityX += (Math.random() - 0.5) * 0.5;
             }
         }
         
-        // Объекты могут пролетать через верхнюю границу, но не через линию проигрыша
-        // Это проверяется в методе update
-    }
-
-    // Проверка столкновения между двумя объектами (используем упрощенный круговой коллайдер)
-    checkCollision(obj1, obj2) {
-        // Теперь у нас только круги, поэтому сразу вызываем проверку для кругов
-        return this.checkCircleCollision(obj1, obj2);
-    }
-
-    // Проверка коллизии между двумя кругами
-    checkCircleCollision(obj1, obj2) {
-        const dx = obj2.x - obj1.x;
-        const dy = obj2.y - obj1.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Радиусы обоих кругов
-        const radius1 = obj1.size / 2;
-        const radius2 = obj2.size / 2;
-        
-        // Коллизия происходит, когда расстояние меньше суммы радиусов
-        return distance < (radius1 + radius2);
-    }
-
-    // Оставляем заглушки для других методов проверки коллизий для обратной совместимости
-    checkSquareCollision(obj1, obj2) {
-        return this.checkCircleCollision(obj1, obj2);
-    }
-
-    checkTriangleCollision(obj1, obj2) {
-        return this.checkCircleCollision(obj1, obj2);
-    }
-
-    checkOvalCollision(obj1, obj2) {
-        return this.checkCircleCollision(obj1, obj2);
-    }
-
-    checkDiamondCollision(obj1, obj2) {
-        return this.checkCircleCollision(obj1, obj2);
-    }
-
-    // Разрешение физического столкновения между объектами
-    resolveCollision(obj1, obj2) {
-        // Проверка кулдауна столкновений
-        const pairId = `${Math.min(this.objects.indexOf(obj1), this.objects.indexOf(obj2))}_${Math.max(this.objects.indexOf(obj1), this.objects.indexOf(obj2))}`;
-        const lastCollision = this.collisionCooldowns.get(pairId) || 0;
-        if (Date.now() - lastCollision < 100) return;
-        
-        // Вектор между центрами объектов
-        const dx = obj2.x - obj1.x;
-        const dy = obj2.y - obj1.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Если объекты очень далеко друг от друга, игнорируем
-        if (distance > obj1.size + obj2.size) return;
-        
-        // Коэффициент отскока, который зависит от типов объектов
-        let bounceCoefficient = BOUNCE;
-        
-        // Модифицируем коэффициент отскока в зависимости от форм объектов
-        if (obj1.shapeType === 'oval' || obj2.shapeType === 'oval') {
-            // Овалы имеют меньший отскок
-            bounceCoefficient *= 0.85;
-        } else if (obj1.shapeType === 'triangle' || obj2.shapeType === 'triangle') {
-            // Треугольники имеют немного меньший отскок из-за острых углов
-            bounceCoefficient *= 0.9;
-        }
-        
-        // Нормализованный вектор направления
-        const nx = dx / distance;
-        const ny = dy / distance;
-        
-        // Расчет перекрытия объектов с учетом их форм
-        let overlap;
-        
-        // Используем форму для определения перекрытия
-        if (obj1.shapeType === 'circle' && obj2.shapeType === 'circle') {
-            // Для двух кругов - стандартное перекрытие
-            overlap = (obj1.size / 2 + obj2.size / 2) - distance;
-        } else if (obj1.shapeType === 'oval' || obj2.shapeType === 'oval') {
-            // Для овалов учитываем эллиптическую форму
-            overlap = ((obj1.size / 2 + obj2.size / 2) - distance) * 0.85;
-        } else {
-            // Для других сочетаний форм - с корректировкой
-            overlap = ((obj1.size / 2 + obj2.size / 2) - distance) * 0.9;
-        }
-        
-        // Если перекрытие отрицательное, объекты не пересекаются
-        if (overlap <= 0) return;
-        
-        // Корректируем позиции, чтобы устранить перекрытие
-        obj1.x -= nx * overlap * 0.6;
-        obj1.y -= ny * overlap * 0.6;
-        obj2.x += nx * overlap * 0.6;
-        obj2.y += ny * overlap * 0.6;
-        
-        // Относительная скорость в направлении нормали
-        const dvx = obj2.vx - obj1.vx;
-        const dvy = obj2.vy - obj1.vy;
-        const dotProduct = nx * dvx + ny * dvy;
-        
-        // Если объекты удаляются друг от друга, не обрабатываем столкновение
-        if (dotProduct >= 0) return;
-        
-        // Игнорируем только очень незначительные микроколлизии
-        if (Math.abs(dotProduct) < MIN_COLLISION_THRESHOLD) return;
-        
-        // Импульс от столкновения
-        const impulse = (-(1 + bounceCoefficient) * dotProduct) / 2;
-        
-        // Применяем импульс к обоим объектам
-        obj1.vx -= impulse * nx;
-        obj1.vy -= impulse * ny;
-        obj2.vx += impulse * nx;
-        obj2.vy += impulse * ny;
-        
-        // Более умеренное демпфирование скорости после столкновения
-        obj1.vx *= VELOCITY_DAMPING;
-        obj1.vy *= VELOCITY_DAMPING;
-        obj2.vx *= VELOCITY_DAMPING;
-        obj2.vy *= VELOCITY_DAMPING;
-        
-        // Добавляем случайное вращение, зависящее от формы объекта
-        // С очень малой амплитудой для минимизации регдоления
-        if (obj1.shapeType !== 'circle') {
-            obj1.rotationSpeed += (Math.random() - 0.5) * 0.007;
-        }
-        if (obj2.shapeType !== 'circle') {
-            obj2.rotationSpeed += (Math.random() - 0.5) * 0.007;
+        // Предотвращение выхода за верхнюю границу (Y < 0)
+        if (obj.y - obj.radius < 0) {
+            obj.y = obj.radius;
+            obj.velocityY = Math.abs(obj.velocityY) * BOUNCE_FACTOR;
         }
     }
-
-    // Объединение двух объектов
-    mergeObjects(obj1, obj2) {
-        if (this.mergeInProgress || obj1.merging || obj2.merging) return;
+    
+    /**
+     * Проверка столкновений между объектами
+     */
+    function handleObjectCollisions(objects) {
+        const currentTime = performance.now();
+        const collisionThreshold = 200; // Минимальное время между последовательными столкновениями (мс)
         
-        this.mergeInProgress = true;
-        obj1.merging = true;
-        obj2.merging = true;
-        obj1.mergePair = obj2;
-        obj2.mergePair = obj1;
+        for (let i = 0; i < objects.length; i++) {
+            for (let j = i + 1; j < objects.length; j++) {
+                const obj1 = objects[i];
+                const obj2 = objects[j];
+                
+                // Если столкновения не было, пропускаем
+                if (!checkCollision(obj1, obj2)) continue;
+                
+                // Если с момента последнего столкновения прошло мало времени, пропускаем
+                if (currentTime - obj1.lastCollisionTime < collisionThreshold ||
+                    currentTime - obj2.lastCollisionTime < collisionThreshold) {
+                    continue;
+                }
+                
+                // Обновляем время последнего столкновения
+                obj1.lastCollisionTime = currentTime;
+                obj2.lastCollisionTime = currentTime;
+                
+                // Если объекты имеют одинаковый уровень, проверяем возможность слияния
+                if (obj1.level === obj2.level) {
+                    const pct = calculateOverlapPercentage(obj1, obj2);
+                    
+                    // Если процент перекрытия достаточен для немедленного слияния
+                    if (pct >= COLLISION_THRESHOLD) {
+                        // Выполняем слияние сразу
+                        mergeTwoObjects(objects, i, j);
+                        return; // Выходим, так как индексы могли измениться
+                    } 
+                    // Иначе планируем слияние с задержкой
+                    else {
+                        // Проверяем, не запланировано ли уже это слияние
+                        const alreadyPending = pendingMerges.some(
+                            merge => (merge.obj1Id === obj1.id && merge.obj2Id === obj2.id) ||
+                                    (merge.obj1Id === obj2.id && merge.obj2Id === obj1.id)
+                        );
+                        
+                        if (!alreadyPending) {
+                            pendingMerges.push({
+                                obj1Id: obj1.id,
+                                obj2Id: obj2.id,
+                                startTime: currentTime
+                            });
+                        }
+                    }
+                }
+                
+                // Обрабатываем физику столкновения для отскока
+                resolveCollision(obj1, obj2);
+            }
+        }
+    }
+    
+    /**
+     * Вычисление процента перекрытия между двумя объектами
+     */
+    function calculateOverlapPercentage(obj1, obj2) {
+        const distance = Math.sqrt(Math.pow(obj1.x - obj2.x, 2) + Math.pow(obj1.y - obj2.y, 2));
+        const sumRadii = obj1.radius + obj2.radius;
         
-        // Позиция нового объекта - середина между двумя старыми
+        // Если объекты не пересекаются, перекрытие 0%
+        if (distance >= sumRadii) return 0;
+        
+        // Вычисляем процент перекрытия (от 0 до 1)
+        return (sumRadii - distance) / Math.min(obj1.radius, obj2.radius);
+    }
+    
+    /**
+     * Проверка столкновения между двумя объектами
+     */
+    function checkCollision(obj1, obj2) {
+        const distance = Math.sqrt(Math.pow(obj1.x - obj2.x, 2) + Math.pow(obj1.y - obj2.y, 2));
+        return distance < obj1.radius + obj2.radius;
+    }
+    
+    /**
+     * Физическое разрешение столкновения между двумя объектами
+     */
+    function resolveCollision(obj1, obj2) {
+        // Вектор нормали между центрами объектов
+        const nx = obj2.x - obj1.x;
+        const ny = obj2.y - obj1.y;
+        
+        // Длина вектора нормали
+        const length = Math.sqrt(nx * nx + ny * ny);
+        if (length === 0) return; // Предотвращение деления на ноль
+        
+        // Нормализация вектора нормали
+        const unx = nx / length;
+        const uny = ny / length;
+        
+        // Проекции скоростей объектов на вектор нормали
+        const v1n = obj1.velocityX * unx + obj1.velocityY * uny;
+        const v2n = obj2.velocityX * unx + obj2.velocityY * uny;
+        
+        // Расчет импульса (формула для упругого столкновения)
+        const m1 = obj1.radius * obj1.radius; // Масса пропорциональна квадрату радиуса
+        const m2 = obj2.radius * obj2.radius;
+        
+        // Если объекты движутся в разных направлениях относительно нормали,
+        // выполняем отскок, иначе они могут уже "расталкиваться"
+        if (v1n > v2n) {
+            // Новые скорости после столкновения
+            const v1nNew = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
+            const v2nNew = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2);
+            
+            // Обновление скоростей объектов
+            obj1.velocityX += (v1nNew - v1n) * unx * BOUNCE_FACTOR;
+            obj1.velocityY += (v1nNew - v1n) * uny * BOUNCE_FACTOR;
+            obj2.velocityX += (v2nNew - v2n) * unx * BOUNCE_FACTOR;
+            obj2.velocityY += (v2nNew - v2n) * uny * BOUNCE_FACTOR;
+            
+            // Отталкиваем объекты друг от друга для предотвращения застревания
+            const overlap = obj1.radius + obj2.radius - length;
+            if (overlap > 0) {
+                // Распределяем смещение по массам объектов
+                const totalMass = m1 + m2;
+                const moveX = unx * overlap;
+                const moveY = uny * overlap;
+                
+                obj1.x -= moveX * (m2 / totalMass);
+                obj1.y -= moveY * (m2 / totalMass);
+                obj2.x += moveX * (m1 / totalMass);
+                obj2.y += moveY * (m1 / totalMass);
+            }
+            
+            // Добавляем случайное вращение при столкновении
+            obj1.rotationSpeed += (Math.random() - 0.5) * 0.05;
+            obj2.rotationSpeed += (Math.random() - 0.5) * 0.05;
+        }
+    }
+    
+    /**
+     * Выполнение слияния двух объектов
+     */
+    function mergeTwoObjects(objects, index1, index2) {
+        const obj1 = objects[index1];
+        const obj2 = objects[index2];
+        
+        // Определяем новую позицию (центр между объектами)
         const newX = (obj1.x + obj2.x) / 2;
         const newY = (obj1.y + obj2.y) / 2;
         
-        // Новый уровень - на 1 больше
+        // Усредняем скорости с учетом сохранения импульса
+        const m1 = obj1.radius * obj1.radius;
+        const m2 = obj2.radius * obj2.radius;
+        const totalMass = m1 + m2;
+        const newVelocityX = (obj1.velocityX * m1 + obj2.velocityX * m2) / totalMass;
+        const newVelocityY = (obj1.velocityY * m1 + obj2.velocityY * m2) / totalMass;
+        
+        // Новый уровень = текущий уровень + 1
         const newLevel = obj1.level + 1;
         
-        setTimeout(() => {
-            // Создаем новый объект
-            this.createObject(newX, newY, newLevel);
-            
-            // Помечаем старые объекты к удалению
-            obj1.toRemove = true;
-            obj2.toRemove = true;
-            
-            // Сбрасываем флаг слияния
-            this.mergeInProgress = false;
-            
-            // Начисляем очки за слияние
-            const points = newLevel * 10;
-            if (this.game && typeof this.game.updateScore === 'function') {
-                this.game.updateScore(points);
-                console.log(`Начислено ${points} очков за слияние объектов уровня ${newLevel-1} в объект уровня ${newLevel}`);
-            } else {
-                console.error('Не удалось обновить счет: метод updateScore недоступен');
-            }
-        }, 300);
+        // Создаем новый объект
+        const newObj = createObject(newX, newY, newLevel);
         
-        // Возвращаем 0, так как очки будут начислены позже
-        return 0;
-    }
-
-    // Проверка условия проигрыша - есть ли объекты, пересекающие верхнюю линию
-    checkGameOver() {
-        // Игра считается проигранной, если объекты пересекают верхнюю линию снизу и остаются там
-        for (const obj of this.objects) {
-            // Если объект:
-            // 1. Раньше был ниже линии
-            // 2. Сейчас находится выше линии (пересекает её)
-            // 3. Не движется вверх (т.е. он не просто временно подпрыгнул)
-            if (obj.wasBelow && 
-                obj.y - obj.size / 2 < this.topLine && 
-                obj.vy >= 0) {
-                
-                console.log('Проигрыш: объект пересёк линию снизу', obj);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Удаление всех объектов определенного уровня (для бонуса "Дезинтеграция")
-    removeObjectsByLevel(level) {
-        let removedCount = 0;
+        // Устанавливаем начальные скорости и вращение
+        newObj.velocityX = newVelocityX;
+        newObj.velocityY = newVelocityY;
+        newObj.rotationSpeed = (obj1.rotationSpeed + obj2.rotationSpeed) / 2;
         
-        for (const obj of this.objects) {
-            if (obj.level === level && !obj.merging) {
-                obj.toRemove = true;
-                removedCount++;
+        // Удаляем старые объекты (в обратном порядке, чтобы индексы не сбились)
+        objects.splice(Math.max(index1, index2), 1);
+        objects.splice(Math.min(index1, index2), 1);
+        
+        // Добавляем новый объект
+        objects.push(newObj);
+    }
+    
+    /**
+     * Проверка возможных слияний и подсчет очков
+     */
+    function checkMerges(objects) {
+        let merges = 0;
+        let points = 0;
+        
+        // Проверка выполненных слияний через сравнение ID объектов
+        // Для упрощения, считаем, что каждый новый объект получает новый ID
+        // и если minId < nextId - numberOfObjects, то произошло слияние
+        const minId = objects.reduce((min, obj) => Math.min(min, obj.id), Infinity);
+        const maxId = objects.reduce((max, obj) => Math.max(max, obj.id), -Infinity);
+        
+        // Если был создан новый объект через слияние
+        if (minId !== Infinity && maxId !== -Infinity && maxId >= nextId - 1) {
+            // Находим объект с максимальным ID (это новый слитый объект)
+            const newObj = objects.find(obj => obj.id === maxId);
+            if (newObj) {
+                merges = 1; // Одно слияние
+                points = newObj.level * 10; // 10 очков за каждый уровень
             }
         }
         
-        return removedCount;
+        return { merges, points };
     }
+    
+    // Публичный API
+    return {
+        createObject,
+        updateObjects,
+        checkMerges
+    };
+})();
 
-    // Удаление объектов в радиусе от точки (для бонуса "Бомба")
-    removeObjectsInRadius(x, y, radius) {
-        let removedCount = 0;
-        
-        for (const obj of this.objects) {
-            // Расстояние от центра бомбы до объекта
-            const dx = obj.x - x;
-            const dy = obj.y - y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            // Если объект в радиусе взрыва и не сливается
-            if (distance <= radius && !obj.merging) {
-                obj.toRemove = true;
-                removedCount++;
-            }
-        }
-        
-        return removedCount;
-    }
-}
+// Экспорт объекта Physics для использования в других модулях
+window.Physics = Physics;

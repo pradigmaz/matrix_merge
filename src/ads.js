@@ -1,113 +1,160 @@
 /**
- * ads.js
- * Содержит заглушки для рекламы и бонусов.
- * В будущем эти функции будут заменены реальными вызовами Яндекс Games SDK.
+ * ads.js - Заглушки для рекламы и бонусов в игре Matrix Drop
+ * Предназначен для последующей интеграции с Яндекс Games SDK
  */
 
-// Класс для работы с рекламой и бонусами
-class Ads {
-    constructor(game) {
-        this.game = game;
+// Объект с методами для работы с рекламой и бонусами
+const Ads = (() => {
+    // Состояние рекламы
+    const state = {
+        lastAdShown: 0,
+        adInterval: 5 * 60 * 1000, // 5 минут в миллисекундах
+        isAdPlaying: false,
+        pendingCallback: null
+    };
+    
+    /**
+     * Инициализация заглушек рекламы
+     */
+    function init() {
+        // В реальной интеграции здесь будет инициализация Яндекс Games SDK
+        console.log('Ads: инициализация рекламных заглушек');
         
-        // Время последнего показа рекламы (для периодической рекламы)
-        this.lastAdTime = 0;
-        
-        // Флаг, показывающий, что идет показ рекламы
-        this.adShowing = false;
+        // Запуск таймера для периодического показа рекламы
+        startAdTimer();
     }
-
-    // Инициализация рекламы (в будущем здесь будет инициализация SDK)
-    init() {
-        console.log('Реклама инициализирована (заглушка)');
-        return Promise.resolve();
+    
+    /**
+     * Запуск таймера для показа рекламы с интервалом
+     */
+    function startAdTimer() {
+        // Проверяем время с последнего показа рекламы
+        setInterval(() => {
+            const currentTime = performance.now();
+            if (!state.isAdPlaying && 
+                currentTime - state.lastAdShown >= state.adInterval) {
+                showPeriodicAd();
+            }
+        }, 10000); // Проверяем каждые 10 секунд
     }
-
-    // Показ вступительной рекламы
-    showInitialAd() {
-        // Заглушка для вступительной рекламы
-        console.log('Показываем вступительную рекламу (заглушка)');
-        
-        // Имитируем показ рекламы на 2 секунды
-        this.adShowing = true;
-        return new Promise(resolve => {
-            setTimeout(() => {
-                this.adShowing = false;
-                console.log('Реклама завершена');
-                resolve();
-            }, 2000);
-        });
-    }
-
-    // Показ периодической рекламы (каждые 5 минут)
-    checkPeriodicAd() {
-        const currentTime = Date.now();
-        
-        // Проверяем, прошло ли 5 минут с последнего показа
-        if (currentTime - this.lastAdTime > 5 * 60 * 1000) {
-            // Заглушка для показа рекламы
-            console.log('Показываем периодическую рекламу (заглушка)');
-            
-            // Имитируем показ рекламы на 2 секунды
-            this.adShowing = true;
-            this.game.pause();
-            
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    this.adShowing = false;
-                    this.lastAdTime = currentTime;
-                    console.log('Реклама завершена');
-                    this.game.resume();
-                    resolve();
-                }, 2000);
+    
+    /**
+     * Показ периодической рекламы
+     */
+    function showPeriodicAd() {
+        // Проверяем, что игра активна и не на паузе
+        if (window.Game && window.Game.state && !window.Game.state.isGameOver) {
+            console.log('Ads: показ периодической рекламы');
+            showAd(() => {
+                console.log('Ads: периодическая реклама завершена');
             });
         }
-        
-        return Promise.resolve(false);
     }
-
-    // Показ рекламы после проигрыша для продолжения
-    showContinueAd() {
-        // Заглушка для показа рекламы после проигрыша
-        console.log('Показываем рекламу для продолжения (заглушка)');
-        
-        // Имитируем показ рекламы на 2 секунды
-        this.adShowing = true;
-        return new Promise(resolve => {
-            setTimeout(() => {
-                this.adShowing = false;
-                console.log('Реклама завершена');
+    
+    /**
+     * Показ рекламы при проигрыше с возможностью продолжения
+     */
+    function showGameOverAd(callback) {
+        console.log('Ads: показ рекламы после проигрыша');
+        showAd(() => {
+            // Удаляем 50% объектов для продолжения
+            if (window.Game && window.Game.state && window.Game.state.objects) {
+                const objects = window.Game.state.objects;
+                // Сортируем объекты по уровню (от меньшего к большему)
+                objects.sort((a, b) => a.level - b.level);
                 
-                // Возвращаем true, что означает успешный просмотр рекламы
-                // и возможность продолжить игру
-                resolve(true);
-            }, 2000);
+                // Удаляем половину объектов (начиная с самых маленьких)
+                const removeCount = Math.floor(objects.length / 2);
+                if (removeCount > 0) {
+                    objects.splice(0, removeCount);
+                }
+                
+                // Сбрасываем флаг проигрыша
+                window.Game.state.isGameOver = false;
+                
+                console.log(`Ads: удалено ${removeCount} объектов для продолжения игры`);
+                
+                // Вызываем колбэк, если он был передан
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
+            }
         });
     }
-
-    // Показ рекламы для активации бонуса
-    showBonusAd(bonusType) {
-        // Заглушка для показа рекламы для бонуса
-        console.log(`Показываем рекламу для активации бонуса ${bonusType} (заглушка)`);
+    
+    /**
+     * Общая функция для показа рекламы (заглушка)
+     */
+    function showAd(callback) {
+        // Если реклама уже воспроизводится, сохраняем колбэк и выходим
+        if (state.isAdPlaying) {
+            state.pendingCallback = callback;
+            return;
+        }
         
-        // Имитируем показ рекламы на 2 секунды
-        this.adShowing = true;
-        this.game.pause();
+        // Устанавливаем флаг воспроизведения рекламы
+        state.isAdPlaying = true;
+        state.lastAdShown = performance.now();
         
-        return new Promise(resolve => {
-            setTimeout(() => {
-                this.adShowing = false;
-                console.log('Реклама завершена');
-                this.game.resume();
-                
-                // Возвращаем true, что означает успешный просмотр рекламы
-                // и активацию бонуса
-                resolve(true);
-            }, 2000);
+        // Имитация показа рекламы (в реальном приложении здесь будет вызов SDK)
+        console.log('Ads: начало показа рекламы (заглушка)');
+        
+        // Имитируем задержку от рекламы
+        setTimeout(() => {
+            // Сбрасываем флаг воспроизведения
+            state.isAdPlaying = false;
+            
+            // Вызываем колбэк после "просмотра" рекламы
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
+            
+            // Если есть ожидающий колбэк, вызываем его и очищаем
+            if (state.pendingCallback) {
+                const pendingCallback = state.pendingCallback;
+                state.pendingCallback = null;
+                pendingCallback();
+            }
+            
+            console.log('Ads: конец показа рекламы (заглушка)');
+        }, 1000); // Имитация длительности 1 секунда
+    }
+    
+    /**
+     * Активация бонуса в обмен на просмотр рекламы
+     */
+    function activateBonusForAd(bonusType, position, callback) {
+        // Показываем рекламу
+        showAd(() => {
+            // Применяем бонус в зависимости от типа
+            if (bonusType === 'disintegration') {
+                // Активация бонуса дезинтеграции
+                if (window.Game && window.Game.activateDisintegration) {
+                    window.Game.activateDisintegration();
+                }
+            } else if (bonusType === 'bomb') {
+                // Активация бонуса бомбы
+                if (window.Game && window.Game.activateBomb) {
+                    const { x, y } = position || { x: window.Game.width / 2, y: 600 };
+                    window.Game.activateBomb(x, y);
+                }
+            }
+            
+            // Вызываем колбэк, если он был передан
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
         });
     }
+    
+    // Публичный API
+    return {
+        init,
+        showAd,
+        showGameOverAd,
+        activateBonusForAd
+    };
+})();
 
-    // Проверка, идет ли сейчас показ рекламы
-    isAdShowing() {
-        return this.adShowing;
-    }
-}
+// Экспорт объекта Ads для использования в других модулях
+window.Ads = Ads;

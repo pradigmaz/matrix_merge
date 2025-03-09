@@ -4,146 +4,389 @@
     box-sizing: border-box;
 }
 
+@font-face {
+    font-family: 'MatrixFont';
+    src: url('assets/fonts/orbitron.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
 body {
     background-color: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    font-family: 'MatrixFont', 'Orbitron', sans-serif;
     overflow: hidden;
-    font-family: 'Orbitron', sans-serif;
     color: #0f0;
 }
 
-#game-container {
+#gameContainer {
     position: relative;
-    width: 100%;
-    height: 100%;
-    max-width: 1080px;
-    max-height: 1920px;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
 }
 
-canvas {
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #000;
+    z-index: 1;
+    max-width: 100vw;
+    max-height: 100vh;
+}
+
+#uiOverlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+    pointer-events: none;
+    z-index: 2;
 }
 
-#background-canvas {
-    z-index: 0;
+#topInterface {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 3;
 }
 
-#game-canvas {
-    z-index: 1;
+#scoreContainer {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: #0f0;
+    font-size: 40px;
+    text-shadow: 0 0 10px #0f0;
+    pointer-events: none;
 }
 
-/* Панель настроек */
-#settings-panel {
+#topBonusContainer {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 40px;
+    z-index: 3;
+    pointer-events: auto;
+}
+
+#settingsButton {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>');
+    background-size: cover;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    pointer-events: auto;
+    filter: drop-shadow(0 0 5px #0f0);
+}
+
+#gameAreaBoundaries {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.boundary {
+    position: absolute;
+    background-color: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 0 10px #0f0;
+}
+
+#topBoundary {
+    top: 300px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background-color: rgba(255, 0, 0, 0.5);
+    box-shadow: 0 0 10px #f00;
+}
+
+#leftBoundary {
+    top: 300px;
+    left: 0;
+    width: 2px;
+    height: calc(100% - 300px - 200px);
+}
+
+#rightBoundary {
+    top: 300px;
+    right: 0;
+    width: 2px;
+    height: calc(100% - 300px - 200px);
+}
+
+#bottomBoundary {
+    bottom: 200px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+}
+
+.bonus {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.7);
+    border: 2px solid #0f0;
+    cursor: pointer;
+    pointer-events: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 15px #0f0;
+    position: relative;
+}
+
+#disintegrateBonus {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>');
+    background-size: 60%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+#bombBonus {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>');
+    background-size: 60%;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.bonus.cooldown::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 3;
+}
+
+.bonus.cooldown::after {
+    content: attr(data-cooldown);
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 800px;
-    max-width: 80%;
-    height: 600px;
-    background-color: rgba(0, 0, 0, 0.8);
-    border: 2px solid #0f0;
-    border-radius: 10px;
-    z-index: 10;
-    padding: 20px;
     color: #0f0;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+    font-size: 24px;
+    z-index: 4;
 }
 
-.settings-header {
+#settingsPanel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 800px;
+    height: auto;
+    max-height: 80%;
+    background-color: rgba(0, 0, 0, 0.9);
+    border: 2px solid #0f0;
+    box-shadow: 0 0 20px #0f0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.settingsHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
+    border-bottom: 1px solid #0f0;
+    padding-bottom: 10px;
 }
 
-.settings-header h2 {
-    font-size: 24px;
-    text-shadow: 0 0 10px #0f0;
-}
-
-#close-settings {
-    background: none;
-    border: none;
+.settingsHeader h2 {
     color: #0f0;
-    font-size: 24px;
+    font-size: 36px;
+    text-shadow: 0 0 10px #0f0;
+}
+
+#closeSettings {
+    font-size: 30px;
+    color: #0f0;
     cursor: pointer;
     text-shadow: 0 0 10px #0f0;
 }
 
-.setting-item {
-    margin-bottom: 30px;
+.settingsContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    overflow-y: auto;
 }
 
-.setting-item label {
-    display: block;
-    margin-bottom: 10px;
-    font-size: 18px;
+.settingItem {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.setting-item input[type="range"] {
+.settingItem label, .settingItem p {
+    font-size: 24px;
+    color: #0f0;
+    text-shadow: 0 0 5px #0f0;
+}
+
+.settingItem input[type="range"] {
+    -webkit-appearance: none;
     width: 100%;
-    -webkit-appearance: none;
-    background: #333;
-    height: 10px;
-    border-radius: 5px;
-    outline: none;
+    height: 20px;
+    background: #000;
+    border: 1px solid #0f0;
+    border-radius: 10px;
+    box-shadow: 0 0 5px #0f0;
 }
 
-.setting-item input[type="range"]::-webkit-slider-thumb {
+.settingItem input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
+    width: 30px;
+    height: 30px;
     background: #0f0;
-    cursor: pointer;
+    border-radius: 50%;
     box-shadow: 0 0 10px #0f0;
 }
 
-.color-scheme-buttons {
+.colorSchemes {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
-.color-scheme-buttons button {
-    background-color: #111;
-    color: #0f0;
+.schemeButton {
+    padding: 10px 20px;
+    background-color: rgba(0, 0, 0, 0.7);
     border: 1px solid #0f0;
-    padding: 10px 15px;
+    color: #0f0;
     cursor: pointer;
-    border-radius: 5px;
-    transition: all 0.3s;
+    text-shadow: 0 0 5px #0f0;
+    box-shadow: 0 0 5px #0f0;
+    transition: all 0.3s ease;
 }
 
-.color-scheme-buttons button:hover,
-.color-scheme-buttons button.active {
+.schemeButton.active {
     background-color: #0f0;
     color: #000;
     box-shadow: 0 0 15px #0f0;
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
-/* Адаптивное масштабирование */
-@media (max-aspect-ratio: 9/16) {
-    #game-container {
-        width: 100vw;
-        height: calc(100vw * 16/9);
-    }
+body.cyberpunk {
+    color: #0ff;
 }
 
-@media (min-aspect-ratio: 9/16) {
-    #game-container {
-        width: calc(100vh * 9/16);
-        height: 100vh;
+body.cyberpunk #scoreContainer,
+body.cyberpunk #settingsButton,
+body.cyberpunk .bonus,
+body.cyberpunk #settingsPanel,
+body.cyberpunk .settingsHeader h2,
+body.cyberpunk #closeSettings,
+body.cyberpunk .settingItem label,
+body.cyberpunk .settingItem p,
+body.cyberpunk .schemeButton,
+body.cyberpunk .boundary {
+    color: #f0f;
+    border-color: #f0f;
+    box-shadow: 0 0 15px #f0f;
+    text-shadow: 0 0 10px #f0f;
+}
+
+body.cyberpunk #topBoundary {
+    background-color: rgba(255, 0, 255, 0.5);
+    box-shadow: 0 0 10px #f0f;
+}
+
+body.cyberpunk .settingItem input[type="range"] {
+    border-color: #f0f;
+    box-shadow: 0 0 5px #f0f;
+}
+
+body.cyberpunk .settingItem input[type="range"]::-webkit-slider-thumb {
+    background: #f0f;
+    box-shadow: 0 0 10px #f0f;
+}
+
+body.cyberpunk .schemeButton.active {
+    background-color: #f0f;
+    color: #000;
+    box-shadow: 0 0 15px #f0f;
+}
+
+body.chaos {
+    color: #f00;
+}
+
+body.chaos #scoreContainer,
+body.chaos #settingsButton,
+body.chaos .bonus,
+body.chaos #settingsPanel,
+body.chaos .settingsHeader h2,
+body.chaos #closeSettings,
+body.chaos .settingItem label,
+body.chaos .settingItem p,
+body.chaos .schemeButton,
+body.chaos .boundary {
+    color: #ff0;
+    border-color: #ff0;
+    box-shadow: 0 0 15px #ff0;
+    text-shadow: 0 0 10px #ff0;
+}
+
+body.chaos #topBoundary {
+    background-color: rgba(255, 255, 0, 0.5);
+    box-shadow: 0 0 10px #ff0;
+}
+
+body.chaos .settingItem input[type="range"] {
+    border-color: #ff0;
+    box-shadow: 0 0 5px #ff0;
+}
+
+body.chaos .settingItem input[type="range"]::-webkit-slider-thumb {
+    background: #ff0;
+    box-shadow: 0 0 10px #ff0;
+}
+
+body.chaos .schemeButton.active {
+    background-color: #ff0;
+    color: #000;
+    box-shadow: 0 0 15px #ff0;
+}
+
+@media (max-width: 1080px) or (max-height: 1920px) {
+    #gameCanvas {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
     }
 }

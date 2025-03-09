@@ -1,360 +1,339 @@
 /**
- * game.js
- * Основной файл игры, отвечающий за игровой цикл,
- * взаимодействие с пользователем и связь всех компонентов.
+ * game.js - Основная логика игры Matrix Drop
+ * Отвечает за инициализацию игры, игровой цикл, управление состоянием
  */
 
-// Основной класс игры
-class Game {
-    constructor() {
-        // Размеры игрового поля
-        this.width = 1080;
-        this.height = 1920;
-        
-        // Позиция верхней линии (граница проигрыша)
-        this.topLine = 300;
-        
-        // Получаем холсты из DOM
-        this.gameCanvas = document.getElementById('game-canvas');
-        this.bgCanvas = document.getElementById('background-canvas');
-        
-        // Создаем экземпляры компонентов игры
-        this.physics = new Physics(this.width, this.height, this.topLine, this);
-        this.renderer = new Renderer(this.gameCanvas, this.bgCanvas, this.width, this.height, this.topLine);
-        this.ui = new UI(this, this.renderer);
-        this.ads = new Ads(this);
-        
-        // Игровые переменные
-        this.score = 0;
-        this.gameOver = false;
-        this.paused = false;
-        this.lastTime = 0;
-        this.spawnCooldown = 0;
-        
-        // Бонусы
-        this.bonus1Cooldown = 0; // Дезинтеграция
-        this.bonus2Cooldown = 0; // Бомба
-        this.activatedBonus = null; // Активированный бонус (для бомбы нужен второй клик)
-        
-        // Инициализация обработчиков событий
-        this.initEventListeners();
-    }
+// Константы и настройки
+const GAME_WIDTH = 1080;
+const GAME_HEIGHT = 1920;
+const LINE_Y = 300; // Верхняя линия (граница проигрыша)
+const BOTTOM_Y = 1720; // Нижняя граница игрового поля (над панелью бонусов)
 
-    // Инициализация обработчиков событий
-    initEventListeners() {
-        // Клик/тап для спавна объектов и взаимодействия с UI
-        this.gameCanvas.addEventListener('click', (e) => {
-            if (this.gameOver || this.paused || this.ads.isAdShowing()) return;
-            
-            // Получаем координаты клика с учетом масштабирования
-            const rect = this.gameCanvas.getBoundingClientRect();
-            const scaleX = this.gameCanvas.width / rect.width;
-            const scaleY = this.gameCanvas.height / rect.height;
-            
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            
-            console.log('Клик по координатам:', x, y);
-            
-            // Проверяем, попал ли клик на элементы UI
-            const clickedUI = this.ui.handleClick(x, y);
-            console.log('Клик по UI:', clickedUI);
-            
-            if (!clickedUI) {
-                // Если у нас активирован бонус "Бомба", используем его
-                if (this.activatedBonus === 'bomb') {
-                    this.useBomb(x, y);
-                    this.activatedBonus = null;
-                    console.log('Использована бомба в координатах:', x, y);
-                } else {
-                    // Иначе спавним объект, если не на кулдауне
-                    if (this.spawnCooldown <= 0) {
-                        // Спавним объект наверху в позиции клика по X
-                        const obj = this.spawnObject(x);
-                        console.log('Создан объект:', obj);
-                        
-                        // Устанавливаем кулдаун спавна (200 мс)
-                        this.spawnCooldown = 200;
-                    } else {
-                        console.log('Спавн на кулдауне:', this.spawnCooldown);
-                    }
-                }
-            }
-        });
-        
-        // Обрабатываем нажатия клавиш (пауза и др.)
-        document.addEventListener('keydown', (e) => {
-            // Пауза по клавише P или Escape
-            if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-                this.togglePause();
-            }
-        });
-    }
+// Глобальные переменные
+let canvas, ctx;
+let lastFrameTime = 0;
+let animationFrameId = null;
 
-    // Инициализация игры
-    async init() {
-        // Загружаем настройки
-        this.ui.loadSettings();
-        
-        // Настраиваем размеры холстов
-        this.setupCanvas();
-        
-        // Инициализируем рекламу
-        await this.ads.init();
-        
-        // Показываем вступительную рекламу
-        await this.ads.showInitialAd();
-        
-        // Создаем первый объект для демонстрации
-        this.spawnObject(this.width / 2);
-        
-        // Запускаем игровой цикл
-        this.gameLoop(0);
-        
-        console.log('Игра инициализирована');
-    }
+// Состояние игры
+const gameState = {
+    score: 0,
+    objects: [],
+    isGameOver: false,
+    colorScheme: 'classic', // classic, cyberpunk, chaos
+    bonusCooldown: 0,
+    activeBonus: null
+};
+
+/**
+ * Инициализация игры
+ * Настраивает canvas, добавляет обработчики событий и запускает игровой цикл
+ */
+function initGame() {
+    // Настройка canvas
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
     
-    // Настройка холстов и масштабирования
-    setupCanvas() {
-        // Устанавливаем размеры холстов
-        this.gameCanvas.width = this.width;
-        this.gameCanvas.height = this.height;
-        this.bgCanvas.width = this.width;
-        this.bgCanvas.height = this.height;
-        
-        // Сохраняем соотношение сторон при ресайзе
-        const updateCanvasSize = () => {
-            const container = document.getElementById('game-container');
-            const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
-            
-            const scale = Math.min(
-                containerWidth / this.width,
-                containerHeight / this.height
-            );
-            
-            this.gameCanvas.style.width = `${this.width * scale}px`;
-            this.gameCanvas.style.height = `${this.height * scale}px`;
-            this.bgCanvas.style.width = `${this.width * scale}px`;
-            this.bgCanvas.style.height = `${this.height * scale}px`;
-            
-            console.log(`Масштабирование холста: ${scale}, размеры: ${this.width}x${this.height}`);
-        };
-        
-        // Обновляем размер при загрузке и ресайзе
-        updateCanvasSize();
-        window.addEventListener('resize', updateCanvasSize);
-    }
+    // Адаптация к размеру экрана
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Обработчики событий для игрового поля
+    canvas.addEventListener('click', handleClick);
+    
+    // Инициализация пользовательского интерфейса
+    UI.init();
+    
+    // Инициализация заглушек для рекламы и бонусов
+    Ads.init();
+    
+    // Запуск игрового цикла
+    lastFrameTime = performance.now();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
 
-    // Игровой цикл
-    gameLoop(timestamp) {
-        // Рассчитываем deltaTime с момента последнего кадра
-        const deltaTime = this.lastTime ? timestamp - this.lastTime : 0;
-        this.lastTime = timestamp;
-        
-        // Если игра на паузе, просто перерисовываем текущее состояние
-        if (!this.paused && !this.ads.isAdShowing()) {
-            // Уменьшаем счетчики кулдаунов
-            if (this.spawnCooldown > 0) {
-                this.spawnCooldown -= deltaTime;
-            }
-            
-            if (this.bonus1Cooldown > 0) {
-                this.bonus1Cooldown -= deltaTime;
-                if (this.bonus1Cooldown < 0) this.bonus1Cooldown = 0;
-            }
-            
-            if (this.bonus2Cooldown > 0) {
-                this.bonus2Cooldown -= deltaTime;
-                if (this.bonus2Cooldown < 0) this.bonus2Cooldown = 0;
-            }
-            
-            // Обновляем физику объектов
-            this.physics.update(deltaTime);
-            
-            // Проверяем условие проигрыша
-            if (this.physics.checkGameOver() && !this.gameOver) {
-                this.handleGameOver();
-            }
-            
-            // Проверяем, не нужно ли показать периодическую рекламу
-            this.ads.checkPeriodicAd();
-        }
-        
-        // Рендерим текущее состояние игры
-        this.renderer.render(
-            this.physics.objects,
-            this.score,
-            this.bonus1Cooldown,
-            this.bonus2Cooldown,
-            deltaTime
-        );
-        
-        // Запрашиваем следующий кадр
-        requestAnimationFrame(this.gameLoop.bind(this));
-    }
+/**
+ * Изменение размера canvas для адаптации к размеру экрана
+ * Сохраняет пропорции 1080×1920
+ */
+function resizeCanvas() {
+    const container = document.getElementById('gameContainer');
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Вычисляем масштаб, сохраняя пропорции
+    const scale = Math.min(
+        containerWidth / GAME_WIDTH,
+        containerHeight / GAME_HEIGHT
+    );
+    
+    // Применяем масштаб
+    const scaledWidth = GAME_WIDTH * scale;
+    const scaledHeight = GAME_HEIGHT * scale;
+    
+    // Позиционируем canvas по центру
+    canvas.width = GAME_WIDTH;
+    canvas.height = GAME_HEIGHT;
+    canvas.style.width = `${scaledWidth}px`;
+    canvas.style.height = `${scaledHeight}px`;
+    canvas.style.left = `${(containerWidth - scaledWidth) / 2}px`;
+    canvas.style.top = `${(containerHeight - scaledHeight) / 2}px`;
+}
 
-    // Спавн нового объекта
-    spawnObject(x) {
-        // Ограничиваем координату X пределами игрового поля
-        const safeX = Math.max(150, Math.min(this.width - 150, x));
-        
-        // Спавним объект в верхней части экрана (y = 0) по указанной X-координате
-        const obj = this.physics.createObject(safeX, 50);
-        
-        // Даем случайную начальную скорость по X для разнообразия
-        obj.vx = (Math.random() - 0.5) * 2;
-        
-        console.log('Создан объект на координатах:', safeX, 50, 'с уровнем:', obj.level);
-        
-        return obj;
-    }
-
-    // Обработка проигрыша
-    async handleGameOver() {
-        this.gameOver = true;
-        console.log('Игра окончена. Счет:', this.score);
-        
-        // Показываем рекламу для продолжения
-        const continueGame = await this.ads.showContinueAd();
-        
-        if (continueGame) {
-            // Если игрок посмотрел рекламу, удаляем 50% объектов
-            this.removeHalfObjects();
-            this.gameOver = false;
-        } else {
-            // Иначе перезапускаем игру
-            this.restart();
-        }
-    }
-
-    // Удаление половины объектов (при продолжении игры после просмотра рекламы)
-    removeHalfObjects() {
-        // Сортируем объекты по Y (сверху вниз)
-        const sortedObjects = [...this.physics.objects].sort((a, b) => a.y - b.y);
-        
-        // Удаляем половину верхних объектов
-        const removeCount = Math.ceil(sortedObjects.length / 2);
-        for (let i = 0; i < removeCount; i++) {
-            sortedObjects[i].toRemove = true;
-        }
-    }
-
-    // Перезапуск игры
-    restart() {
-        // Сбрасываем игровые переменные
-        this.score = 0;
-        this.gameOver = false;
-        this.paused = false;
-        this.spawnCooldown = 0;
-        this.bonus1Cooldown = 0;
-        this.bonus2Cooldown = 0;
-        this.activatedBonus = null;
-        
-        // Очищаем массив объектов
-        this.physics.objects = [];
-    }
-
-    // Включение/выключение паузы
-    togglePause() {
-        this.paused = !this.paused;
-        
-        // Если игра приостановлена, показываем настройки
-        if (this.paused) {
-            this.ui.showSettings();
-        } else {
-            this.ui.hideSettings();
-        }
-    }
-
-    // Постановка игры на паузу (для рекламы и т.д.)
-    pause() {
-        this.paused = true;
-    }
-
-    // Возобновление игры после паузы
-    resume() {
-        this.paused = false;
-        this.lastTime = 0; // Сбрасываем время для deltaTime
-    }
-
-    // Активация бонуса
-    activateBonus(type) {
-        // Проверяем, есть ли кулдаун на бонусы
-        if (this.bonus1Cooldown > 0 || this.bonus2Cooldown > 0) {
-            console.log('Бонусы на перезарядке');
-            return;
-        }
-        
-        // Показываем рекламу для активации бонуса
-        this.ads.showBonusAd(type).then(success => {
-            if (success) {
-                if (type === 'disintegration') {
-                    this.useDisintegration();
-                } else if (type === 'bomb') {
-                    // Для бомбы запоминаем, что бонус активирован,
-                    // и ждем следующий клик для определения места взрыва
-                    this.activatedBonus = 'bomb';
-                }
-                
-                // Устанавливаем общий кулдаун для обоих бонусов (60 секунд)
-                this.bonus1Cooldown = 60000;
-                this.bonus2Cooldown = 60000;
-            }
-        });
-    }
-
-    // Использование бонуса "Дезинтеграция"
-    useDisintegration() {
-        // Выбираем случайный уровень объектов для удаления
-        const levels = this.physics.objects.map(obj => obj.level);
-        const uniqueLevels = [...new Set(levels)];
-        
-        if (uniqueLevels.length === 0) return;
-        
-        const levelToRemove = uniqueLevels[Math.floor(Math.random() * uniqueLevels.length)];
-        
-        // Находим все объекты выбранного уровня
-        const objectsToRemove = this.physics.objects.filter(obj => obj.level === levelToRemove);
-        
-        // Анимируем дезинтеграцию объектов
-        this.renderer.animateDisintegration(objectsToRemove);
-        
-        // Удаляем объекты
-        const removedCount = this.physics.removeObjectsByLevel(levelToRemove);
-        
-        // Начисляем очки за удаленные объекты
-        this.score += removedCount * levelToRemove * 5;
-        
-        console.log(`Дезинтеграция: удалено ${removedCount} объектов уровня ${levelToRemove}`);
-    }
-
-    // Использование бонуса "Бомба"
-    useBomb(x, y) {
-        // Радиус взрыва - 20% ширины экрана
-        const radius = this.width * 0.2;
-        
-        // Анимируем взрыв
-        this.renderer.animateBomb(x, y, radius);
-        
-        // Удаляем объекты в радиусе
-        const removedCount = this.physics.removeObjectsInRadius(x, y, radius);
-        
-        // Начисляем очки за удаленные объекты
-        // (Здесь можно реализовать более сложную логику начисления очков)
-        this.score += removedCount * 10;
-        
-        console.log(`Бомба: удалено ${removedCount} объектов`);
-    }
-
-    // Обновление счета (вызывается при слиянии объектов)
-    updateScore(points) {
-        this.score += points;
+/**
+ * Обработка клика/тапа
+ * Создает новый объект, если игра активна
+ */
+function handleClick(event) {
+    if (gameState.isGameOver) return;
+    
+    // Преобразование координат клика с учетом масштабирования
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const clickX = (event.clientX - rect.left) * scaleX;
+    const clickY = (event.clientY - rect.top) * scaleY;
+    
+    // Проверяем, что клик был выше верхней линии (Y < LINE_Y)
+    if (clickY < LINE_Y) {
+        // Создаем новый объект на верхней границе с случайным X
+        createObject(clickX, 0);
     }
 }
 
-// Ждем загрузки страницы и запускаем игру
-document.addEventListener('DOMContentLoaded', () => {
-    const game = new Game();
-    game.init();
-});
+/**
+ * Создание нового игрового объекта
+ */
+function createObject(x, y, level = 1) {
+    const newObject = Physics.createObject(x, y, level);
+    gameState.objects.push(newObject);
+}
+
+/**
+ * Основной игровой цикл
+ * Вызывается на каждом кадре анимации
+ */
+function gameLoop(timestamp) {
+    // Расчет дельты времени между кадрами
+    const deltaTime = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
+    
+    // Обновление состояния игры
+    update(deltaTime);
+    
+    // Отрисовка
+    render();
+    
+    // Запрос следующего кадра, если игра не окончена
+    if (!gameState.isGameOver) {
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}
+
+/**
+ * Обновление состояния игры
+ * Обновляет физику, проверяет условия проигрыша и обновляет бонусы
+ */
+function update(deltaTime) {
+    // Обновление физики объектов
+    Physics.updateObjects(gameState.objects, deltaTime);
+    
+    // Проверка на слияния объектов
+    const mergeResults = Physics.checkMerges(gameState.objects);
+    
+    // Добавление очков за слияния
+    if (mergeResults.merges > 0) {
+        gameState.score += mergeResults.points;
+        UI.updateScore(gameState.score);
+    }
+    
+    // Проверка на проигрыш
+    checkGameOver();
+    
+    // Обновление кулдауна бонусов
+    if (gameState.bonusCooldown > 0) {
+        gameState.bonusCooldown -= deltaTime / 1000; // Перевод в секунды
+        if (gameState.bonusCooldown <= 0) {
+            gameState.bonusCooldown = 0;
+        }
+        UI.updateBonuses(gameState.bonusCooldown);
+    }
+}
+
+/**
+ * Проверка условий завершения игры
+ * Игра завершается, если какой-либо объект пересекает верхнюю линию снизу и остается там
+ */
+function checkGameOver() {
+    // Проверяем все объекты
+    for (const obj of gameState.objects) {
+        // Проверяем, что объект пересекает верхнюю линию снизу (y - radius < LINE_Y)
+        // и его скорость настолько мала, что он останется выше линии
+        if (obj.y - obj.radius < LINE_Y && Math.abs(obj.velocityY) < 0.5) {
+            gameOver();
+            break;
+        }
+    }
+}
+
+/**
+ * Завершение игры
+ * Останавливает игровой цикл и показывает сообщение о проигрыше
+ */
+function gameOver() {
+    gameState.isGameOver = true;
+    
+    // Показать сообщение или экран проигрыша
+    console.log("Игра завершена! Счет:", gameState.score);
+    
+    // Здесь можно добавить показ рекламы для продолжения игры
+    // Ads.showAd(() => {
+    //     resetGame();
+    // });
+}
+
+/**
+ * Сброс игры для нового раунда
+ */
+function resetGame() {
+    gameState.score = 0;
+    gameState.objects = [];
+    gameState.isGameOver = false;
+    gameState.bonusCooldown = 0;
+    gameState.activeBonus = null;
+    
+    UI.updateScore(gameState.score);
+    UI.updateBonuses(gameState.bonusCooldown);
+    
+    // Перезапуск игрового цикла, если он был остановлен
+    if (!animationFrameId) {
+        lastFrameTime = performance.now();
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}
+
+/**
+ * Отрисовка всех элементов игры
+ */
+function render() {
+    // Очистка экрана
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Отрисовка фона (матричный дождь)
+    Renderer.renderBackground(ctx, gameState.colorScheme);
+    
+    // Отрисовка верхней линии (границы проигрыша)
+    Renderer.renderBoundaryLine(ctx, LINE_Y);
+    
+    // Отрисовка объектов
+    Renderer.renderObjects(ctx, gameState.objects);
+    
+    // Дополнительные эффекты (если активен бонус)
+    if (gameState.activeBonus) {
+        Renderer.renderBonusEffect(ctx, gameState.activeBonus);
+    }
+}
+
+/**
+ * Активация бонуса дезинтеграции
+ * Удаляет все объекты одного уровня
+ */
+function activateDisintegration() {
+    if (gameState.bonusCooldown > 0 || gameState.objects.length === 0) return;
+    
+    // Генерируем случайный уровень из имеющихся объектов
+    const availableLevels = [...new Set(gameState.objects.map(obj => obj.level))];
+    const targetLevel = availableLevels[Math.floor(Math.random() * availableLevels.length)];
+    
+    // Фильтруем объекты этого уровня
+    const targetObjects = gameState.objects.filter(obj => obj.level === targetLevel);
+    
+    // Если такие объекты есть, уничтожаем их
+    if (targetObjects.length > 0) {
+        // Устанавливаем активный бонус для визуальных эффектов
+        gameState.activeBonus = {
+            type: 'disintegration',
+            targets: targetObjects,
+            level: targetLevel,
+            startTime: performance.now()
+        };
+        
+        // Удаляем объекты через короткое время (для анимации)
+        setTimeout(() => {
+            // Удаляем все объекты с указанным уровнем
+            gameState.objects = gameState.objects.filter(obj => obj.level !== targetLevel);
+            gameState.activeBonus = null;
+            
+            // Устанавливаем кулдаун
+            gameState.bonusCooldown = 60; // 60 секунд
+            UI.updateBonuses(gameState.bonusCooldown);
+            
+            // Начисляем очки (10 * количество удаленных объектов * уровень)
+            const points = 10 * targetObjects.length * targetLevel;
+            gameState.score += points;
+            UI.updateScore(gameState.score);
+        }, 1000); // Задержка для эффекта
+    }
+}
+
+/**
+ * Активация бонуса бомбы
+ * Удаляет объекты в указанном радиусе
+ */
+function activateBomb(x, y) {
+    if (gameState.bonusCooldown > 0) return;
+    
+    // Радиус действия бомбы (20% ширины экрана)
+    const radius = GAME_WIDTH * 0.2;
+    
+    // Фильтруем объекты в радиусе
+    const targetObjects = gameState.objects.filter(obj => {
+        // Расчет расстояния между центром бомбы и объектом
+        const distance = Math.sqrt(Math.pow(obj.x - x, 2) + Math.pow(obj.y - y, 2));
+        return distance <= radius;
+    });
+    
+    // Если есть объекты в радиусе, уничтожаем их
+    if (targetObjects.length > 0) {
+        // Устанавливаем активный бонус для визуальных эффектов
+        gameState.activeBonus = {
+            type: 'bomb',
+            x: x,
+            y: y,
+            radius: radius,
+            targets: targetObjects,
+            startTime: performance.now()
+        };
+        
+        // Удаляем объекты через короткое время (для анимации)
+        setTimeout(() => {
+            // Сохраняем ID объектов для удаления
+            const targetIds = targetObjects.map(obj => obj.id);
+            
+            // Удаляем все объекты в радиусе бомбы
+            gameState.objects = gameState.objects.filter(obj => !targetIds.includes(obj.id));
+            gameState.activeBonus = null;
+            
+            // Устанавливаем кулдаун
+            gameState.bonusCooldown = 60; // 60 секунд
+            UI.updateBonuses(gameState.bonusCooldown);
+            
+            // Начисляем очки (5 * количество удаленных объектов)
+            const points = 5 * targetObjects.length;
+            gameState.score += points;
+            UI.updateScore(gameState.score);
+        }, 1000); // Задержка для эффекта
+    }
+}
+
+// Экспорт функций и объектов для использования в других модулях
+window.Game = {
+    state: gameState,
+    init: initGame,
+    reset: resetGame,
+    activateDisintegration: activateDisintegration,
+    activateBomb: activateBomb
+};
+
+// Запуск игры при загрузке страницы
+window.addEventListener('load', initGame);
