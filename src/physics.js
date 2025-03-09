@@ -27,7 +27,7 @@ class Physics {
 
     // Создание нового объекта с заданным уровнем
     createObject(x, y, level = 1) {
-        // Выбираем случайную форму из доступных
+        // Выбираем случайную форма из доступных
         const shapeType = SHAPES[Math.floor(Math.random() * SHAPES.length)];
         
         // Базовый размер для уровня 1
@@ -54,12 +54,61 @@ class Physics {
             merging: false,       // Флаг процесса слияния объекта
             mergePair: null,      // Ссылка на объект, с которым происходит слияние
             rotation: Math.random() * Math.PI * 2,
-            rotationSpeed: 0,  // Вращение полностью отключено
+            rotationSpeed: 0,
             wasBelow: y > this.topLine  // Флаг, что объект был ниже линии
         };
         
         this.objects.push(object);
         return object;
+    }
+
+    // Новый метод для определения стабильного (естественного) угла фигуры
+    getStableAngle(obj) {
+        // Для квадрата/прямоугольника/ромба стабильные углы кратны 90° (π/2)
+        if (obj.shapeType === 'square' || obj.shapeType === 'diamond') {
+            // Находим ближайший угол, кратный 90°
+            return Math.round(obj.rotation / (Math.PI/2)) * (Math.PI/2);
+        }
+        
+        // Для круга и овала любой угол стабилен
+        if (obj.shapeType === 'circle' || obj.shapeType === 'oval') {
+            return obj.rotation;
+        }
+        
+        // Для треугольника стабильный угол - когда основание внизу
+        if (obj.shapeType === 'triangle') {
+            // Приводим к углу 0 или π (основание внизу)
+            return Math.round(obj.rotation / Math.PI) * Math.PI;
+        }
+        
+        return obj.rotation;
+    }
+
+    // Новый метод для определения, находится ли объект на поверхности
+    isObjectResting(obj) {
+        // Объект на нижней границе экрана
+        const onBottom = obj.y + obj.size/2 >= this.gameHeight - 1;
+        
+        // Объект на другом объекте
+        let onAnotherObject = false;
+        for (const other of this.objects) {
+            if (obj !== other && !other.merging && !obj.merging) {
+                // Проверяем, находится ли объект сверху на другом объекте
+                const dx = obj.x - other.x;
+                const dy = obj.y - other.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Если объекты касаются и наш объект выше другого
+                if (distance < (obj.size/2 + other.size/2 + 1) && obj.y < other.y && Math.abs(dy) < obj.size/3) {
+                    onAnotherObject = true;
+                    break;
+                }
+            }
+        }
+        
+        // Объект считается "на поверхности", если он на нижней границе или на другом объекте
+        // и его вертикальная скорость близка к нулю
+        return (onBottom || onAnotherObject) && Math.abs(obj.vy) < 0.5;
     }
 
     // Обновление физики всех объектов
@@ -83,6 +132,27 @@ class Physics {
             
             // Проверяем столкновение с границами поля
             this.handleBoundaryCollision(obj);
+            
+            // Применяем стабилизацию для объектов на поверхности
+            if (this.isObjectResting(obj)) {
+                const stableAngle = this.getStableAngle(obj);
+                const angleDiff = stableAngle - obj.rotation;
+                
+                // Нормализуем разницу углов в пределах -π до π
+                let normalizedDiff = angleDiff;
+                while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
+                while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+                
+                // Если есть разница в угле, применяем стабилизирующее вращение
+                if (Math.abs(normalizedDiff) > 0.01) {
+                    // Скорость вращения зависит от разницы углов и замедляется при приближении к стабильному положению
+                    obj.rotationSpeed = normalizedDiff * 0.03;
+                } else {
+                    // Когда достигнут стабильный угол, фиксируем его и останавливаем вращение
+                    obj.rotation = stableAngle;
+                    obj.rotationSpeed = 0;
+                }
+            }
             
             // Отмечаем, если объект оказался ниже линии
             if (obj.y > this.topLine + obj.size / 2) {
