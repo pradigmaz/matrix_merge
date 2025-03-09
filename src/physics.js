@@ -16,10 +16,11 @@ const SHAPES = ['circle', 'square', 'triangle', 'oval', 'diamond'];
 
 // Класс для обработки физики объектов
 class Physics {
-    constructor(gameWidth, gameHeight, topLine) {
+    constructor(gameWidth, gameHeight, topLine, game) {
         this.gameWidth = gameWidth;       // Ширина игрового поля
         this.gameHeight = gameHeight;     // Высота игрового поля
         this.topLine = topLine;           // Верхняя граница (линия проигрыша)
+        this.game = game;                 // Ссылка на экземпляр Game для обновления счета
         this.objects = [];                // Массив всех объектов в игре
         this.mergeInProgress = false;     // Флаг процесса слияния (для предотвращения множественных слияний)
         this.mergeTimers = new Map();     // Таймеры для отслеживания длительных контактов между объектами

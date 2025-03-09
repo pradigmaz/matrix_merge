@@ -19,7 +19,7 @@ class Game {
         this.bgCanvas = document.getElementById('background-canvas');
         
         // Создаем экземпляры компонентов игры
-        this.physics = new Physics(this.width, this.height, this.topLine);
+        this.physics = new Physics(this.width, this.height, this.topLine, this);
         this.renderer = new Renderer(this.gameCanvas, this.bgCanvas, this.width, this.height, this.topLine);
         this.ui = new UI(this, this.renderer);
         this.ads = new Ads(this);
