@@ -54,6 +54,7 @@ class Physics {
             mergePair: null,      // Ссылка на объект, с которым происходит слияние
             rotation: Math.random() * Math.PI * 2,  // Случайный начальный угол поворота
             rotationSpeed: (Math.random() - 0.5) * 0.1,  // Скорость вращения
+            wasBelow: y > this.topLine  // Флаг, что объект был ниже линии
         };
         
         this.objects.push(object);
@@ -82,13 +83,13 @@ class Physics {
             // Проверяем столкновение с границами поля
             this.handleBoundaryCollision(obj);
             
-            // Проверка условия проигрыша (объект пересекает верхнюю линию снизу и остается там)
-            if (obj.y - obj.size < this.topLine && obj.vy < 0 && obj.y > this.topLine) {
-                // Если объект был выброшен вверх и пересек линию - это не проигрыш
-                // Мы отслеживаем, что объект пришел снизу (obj.y > this.topLine)
-                // и продолжает двигаться вверх (obj.vy < 0)
-                continue;
+            // Отмечаем, если объект оказался ниже линии
+            if (obj.y > this.topLine + obj.size / 2) {
+                obj.wasBelow = true;
             }
+            
+            // Проверка условия проигрыша (объект пересекает верхнюю линию снизу и остается там)
+            // Перенесена в метод checkGameOver
             
             // Проверяем коллизии с другими объектами
             for (let j = i + 1; j < this.objects.length; j++) {
@@ -253,8 +254,15 @@ class Physics {
     checkGameOver() {
         // Игра считается проигранной, если объекты пересекают верхнюю линию снизу и остаются там
         for (const obj of this.objects) {
-            // Если объект пересекает линию и не движется вниз
-            if (obj.y - obj.size / 2 < this.topLine && obj.vy >= 0) {
+            // Если объект:
+            // 1. Раньше был ниже линии
+            // 2. Сейчас находится выше линии (пересекает её)
+            // 3. Не движется вверх (т.е. он не просто временно подпрыгнул)
+            if (obj.wasBelow && 
+                obj.y - obj.size / 2 < this.topLine && 
+                obj.vy >= 0) {
+                
+                console.log('Проигрыш: объект пересёк линию снизу', obj);
                 return true;
             }
         }
