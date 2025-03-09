@@ -197,7 +197,7 @@ class Game {
     // Спавн нового объекта
     spawnObject(x) {
         // Ограничиваем координату X пределами игрового поля
-        const safeX = Math.max(30, Math.min(this.width - 30, x));
+        const safeX = Math.max(150, Math.min(this.width - 150, x));
         
         // Спавним объект в верхней части экрана (y = 0) по указанной X-координате
         const obj = this.physics.createObject(safeX, 50);

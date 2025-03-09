@@ -30,7 +30,7 @@ class Physics {
         const shapeType = SHAPES[Math.floor(Math.random() * SHAPES.length)];
         
         // Базовый размер для уровня 1
-        const baseSize = 30;
+        const baseSize = 150;
         
         // Увеличиваем размер с каждым уровнем (на 20%)
         let size = baseSize;
@@ -39,7 +39,7 @@ class Physics {
         }
         
         // Максимальный размер объекта
-        size = Math.min(size, 100);
+        size = Math.min(size, 700);
         
         // Создаем объект
         const object = {
