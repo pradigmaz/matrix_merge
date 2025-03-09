@@ -5,10 +5,11 @@
  */
 
 // Константы физики
-const GRAVITY = 0.5;        // Сила гравитации
-const BOUNCE = 0.7;         // Коэффициент отскока (потеря энергии)
-const FRICTION = 0.98;      // Трение при движении 
-const MERGE_TIMER = 500;    // Время в мс для слияния при длительном контакте
+// Изменение констант физики для улучшения механики слияния
+const GRAVITY = 0.5;        // Сила гравитации (оставляем без изменений)
+const BOUNCE = 0.4;         // Коэффициент отскока - УМЕНЬШЕН с 0.7 до 0.4
+const FRICTION = 0.98;      // Трение при движении (оставляем без изменений)
+const MERGE_TIMER = 15;     // Время в мс для слияния - УМЕНЬШЕНО с 500 до 50
 
 // Типы фигур
 const SHAPES = ['circle', 'square', 'triangle', 'oval', 'diamond'];
@@ -108,21 +109,35 @@ class Physics {
                         // Создаем уникальный ключ для пары объектов
                         const pairId = `${Math.min(i, j)}_${Math.max(i, j)}`;
                         
-                        // Если таймер для этой пары еще не существует, создаем его
-                        if (!this.mergeTimers.has(pairId)) {
-                            this.mergeTimers.set(pairId, {
-                                time: 0,
-                                obj1: obj,
-                                obj2: other
-                            });
+                        // Проверяем коллизию с увеличенным радиусом для объектов одинакового уровня
+                        const dx = other.x - obj.x;
+                        const dy = other.y - obj.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const mergeThreshold = (obj.size / 2 + other.size / 2) * 1.1; // Увеличиваем порог слияния на 10%
+                        
+                        if (distance < mergeThreshold) {
+                            // Если таймер для этой пары еще не существует, создаем его
+                            if (!this.mergeTimers.has(pairId)) {
+                                this.mergeTimers.set(pairId, {
+                                    time: 0,
+                                    obj1: obj,
+                                    obj2: other
+                                });
+                            } else {
+                                // Увеличиваем время контакта
+                                const timer = this.mergeTimers.get(pairId);
+                                timer.time += deltaTime;
+                                
+                                // Если время контакта достаточное, выполняем слияние
+                                if (timer.time >= MERGE_TIMER && !this.mergeInProgress) {
+                                    this.mergeObjects(obj, other);
+                                    this.mergeTimers.delete(pairId);
+                                }
+                            }
                         } else {
-                            // Увеличиваем время контакта
-                            const timer = this.mergeTimers.get(pairId);
-                            timer.time += deltaTime;
-                            
-                            // Если время контакта достаточное, выполняем слияние
-                            if (timer.time >= MERGE_TIMER && !this.mergeInProgress) {
-                                this.mergeObjects(obj, other);
+                            // Если объекты не в контакте, удаляем таймер слияния для этой пары
+                            // Но только если они далеко друг от друга, чтобы избежать "дребезга"
+                            if (this.mergeTimers.has(pairId) && distance > mergeThreshold * 1.5) {
                                 this.mergeTimers.delete(pairId);
                             }
                         }
