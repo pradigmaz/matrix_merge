@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Основа бомбы (круг) -->
+  <circle cx="50" cy="55" r="40" fill="#000000" stroke="#ff00ff" stroke-width="2"/>
+  
+  <!-- Запал бомбы -->
+  <path d="M50,15 L50,5 M40,15 L60,15" stroke="#ff00ff" stroke-width="3" fill="none"/>
+  
+  <!-- Сеть цифрового узора -->
+  <circle cx="50" cy="55" r="30" fill="none" stroke="#ff00ff" stroke-width="1" opacity="0.7"/>
+  <circle cx="50" cy="55" r="20" fill="none" stroke="#ff00ff" stroke-width="1" opacity="0.7"/>
+  
+  <!-- Цифровые линии -->
+  <line x1="20" y1="55" x2="80" y2="55" stroke="#ff00ff" stroke-width="1" opacity="0.6"/>
+  <line x1="50" y1="25" x2="50" y2="85" stroke="#ff00ff" stroke-width="1" opacity="0.6"/>
+  
+  <!-- Неоновое свечение -->
+  <filter id="bombGlow">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- Мигающий индикатор -->
+  <circle cx="50" cy="55" r="10" fill="#ff00ff" opacity="0.7" filter="url(#bombGlow)">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Тонкая обводка с эффектом свечения -->
+  <circle cx="50" cy="55" r="40" fill="none" stroke="#ff00ff" stroke-width="1" filter="url(#bombGlow)" opacity="0.8"/>
+</svg>

@@ -1,25 +1,31 @@
+/* Подключение шрифта Orbitron */
+@font-face {
+    font-family: 'Orbitron';
+    src: url('assets/fonts/Orbitron.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Базовые стили и сброс */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-}
-
-@font-face {
-    font-family: 'MatrixFont';
-    src: url('assets/fonts/orbitron.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
+    user-select: none;
 }
 
 body {
     background-color: #000;
-    font-family: 'MatrixFont', 'Orbitron', sans-serif;
-    overflow: hidden;
+    font-family: 'Orbitron', sans-serif;
     color: #0f0;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
 }
 
-/* Контейнер игры: установка вертикальной ориентации */
-#gameContainer {
+/* Контейнер игры */
+.game-container {
     position: relative;
     width: 100vw;
     height: 100vh;
@@ -27,388 +33,456 @@ body {
     justify-content: center;
     align-items: center;
     overflow: hidden;
-    /* Принудительно обеспечиваем правильное соотношение сторон */
-    aspect-ratio: 9/16;
-    max-width: calc(100vh * 9/16);
-    margin: 0 auto;
-}
-
-/* Canvas с фиксированными пропорциями 1080×1920 */
-#gameCanvas {
-    position: absolute;
     background-color: #000;
-    z-index: 1;
-    /* Canvas будет масштабирован в JS с сохранением пропорций */
-    aspect-ratio: 9/16; /* Соотношение сторон для вертикальной ориентации */
 }
 
-/* Интерфейс сверху канваса */
-#uiOverlay {
+/* Граница игрового поля */
+.game-border {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 2;
-}
-
-/* Счетчик очков */
-#scoreContainer {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    color: #0f0;
-    font-size: 40px;
-    text-shadow: 0 0 10px #0f0;
-    pointer-events: none;
-}
-
-/* Кнопка настроек */
-#settingsButton {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>');
-    background-size: cover;
-    background-repeat: no-repeat;
-    cursor: pointer;
-    pointer-events: auto;
-    filter: drop-shadow(0 0 5px #0f0);
-}
-
-/* Контейнер с бонусами (теперь в нижней части как в ТЗ) */
-#bonusContainer {
-    position: absolute;
-    bottom: 20px; /* Располагаем в нижней части экрана согласно ТЗ */
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    z-index: 2;
-    pointer-events: auto;
-}
-
-/* Стили бонусов */
-.bonus {
-    width: 100px; /* Увеличиваем размер согласно ТЗ */
-    height: 100px; /* Увеличиваем размер согласно ТЗ */
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.7);
-    border: 3px solid #0f0;
-    cursor: pointer;
-    pointer-events: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 0 15px #0f0;
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-.bonus:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 20px #0f0, 0 0 40px #0f0;
-}
-
-/* Иконка дезинтеграции */
-#disintegrateBonus {
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>');
-    background-size: 60%;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* Иконка бомбы */
-#bombBonus {
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>');
-    background-size: 60%;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* Состояние кулдауна бонуса */
-.bonus.cooldown::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.7);
     z-index: 3;
-}
-
-.bonus.cooldown::after {
-    content: attr(data-cooldown);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #0f0;
-    font-size: 20px;
-    z-index: 4;
-}
-
-/* Верхняя линия (граница проигрыша) */
-#boundaryLine {
-    position: absolute;
-    width: 100%;
-    height: 5px;
-    background-color: rgba(255, 0, 0, 0.7);
-    box-shadow: 0 0 10px #f00;
-    /* Позиция Y будет установлена в JS (300px в координатах игры) */
+    border: 3px solid var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color), inset 0 0 5px var(--primary-color);
     pointer-events: none;
-    z-index: 3;
 }
 
-/* Рамка игрового поля */
-#gameFieldBorder {
+/* Канвасы */
+canvas {
     position: absolute;
-    border: 2px solid rgba(0, 255, 0, 0.3);
-    box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.2);
-    /* Размеры будут установлены в JS */
-    pointer-events: none;
-    z-index: 3;
-}
-
-/* Панель настроек */
-#settingsPanel {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80%;
-    max-width: 800px;
+    width: auto;
     height: auto;
-    min-height: 400px;
-    max-height: 70%;
-    background-color: rgba(0, 0, 0, 0.9);
-    border: 2px solid #0f0;
-    box-shadow: 0 0 20px #0f0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    /* Соответствие ТЗ */
-    border-radius: 5px;
-    pointer-events: auto;
+    max-width: 100%;
+    max-height: 100%;
 }
 
-.settingsHeader {
+#matrix-bg {
+    z-index: 1;
+}
+
+#game-canvas {
+    z-index: 2;
+}
+
+/* Линия поражения */
+.death-line {
+    position: absolute;
+    top: 20%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color), 0 0 20px var(--primary-color);
+    z-index: 3;
+}
+
+/* UI контейнер */
+.ui-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
-    border-bottom: 1px solid #0f0;
-    padding-bottom: 10px;
+    z-index: 4;
 }
 
-.settingsHeader h2 {
-    color: #0f0;
-    font-size: 24px;
-    text-shadow: 0 0 8px #0f0;
-}
-
-#closeSettings {
-    font-size: 24px;
-    color: #0f0;
-    cursor: pointer;
-    text-shadow: 0 0 8px #0f0;
-    padding: 5px;
-}
-
-.settingsContent {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-.settingItem {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.settingItem label, .settingItem p {
-    font-size: 18px;
-    color: #0f0;
-    text-shadow: 0 0 5px #0f0;
-}
-
-.settingItem input[type="range"] {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 20px;
-    background: #000;
-    border: 2px solid #0f0;
-    border-radius: 10px;
-    box-shadow: 0 0 10px #0f0;
-    margin: 15px 0;
-}
-
-.settingItem input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 30px;
-    height: 30px;
-    background: #0f0;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
-    cursor: pointer;
-}
-
-/* Стилизация слайдера для Firefox */
-.settingItem input[type="range"]::-moz-range-thumb {
-    width: 30px;
-    height: 30px;
-    background: #0f0;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
-    border: none;
-    cursor: pointer;
-}
-
-/* Трек слайдера для Firefox */
-.settingItem input[type="range"]::-moz-range-track {
-    height: 20px;
-    background: #000;
-    border: 2px solid #0f0;
-    border-radius: 10px;
-    box-shadow: 0 0 10px #0f0;
-}
-
-.colorSchemes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.schemeButton {
-    padding: 15px 25px; /* Увеличенный размер */
-    background-color: rgba(0, 0, 0, 0.8);
-    border: 2px solid #0f0;
-    color: #0f0;
-    cursor: pointer;
-    text-shadow: 0 0 5px #0f0;
-    box-shadow: 0 0 10px #0f0;
+/* Счет */
+.score-container {
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 0 0 10px #0f0;
     transition: all 0.3s ease;
-    border-radius: 5px;
-    font-size: 18px;
-    text-align: center;
-    min-width: 150px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.schemeButton:hover {
-    background-color: rgba(0, 80, 0, 0.3);
-    transform: scale(1.05);
+/* Кнопка настроек */
+.settings-button {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #0f0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px #0f0;
 }
 
-.schemeButton.active {
+.settings-button:hover {
     background-color: rgba(0, 255, 0, 0.2);
-    box-shadow: 0 0 15px #0f0, inset 0 0 10px #0f0;
-    color: #fff;
+    transform: scale(1.1);
 }
 
-.hidden {
-    display: none !important;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+/* Панель настроек */
+.settings-panel {
+    position: absolute;
+    z-index: 100;
+    background-color: rgba(0, 0, 0, 0.9);
+    border: 2px solid #0f0;
+    padding: 20px;
+    border-radius: 10px;
+    display: none;
+    width: 300px;
+    box-shadow: 0 0 20px #0f0;
 }
 
-/* Цветовые схемы */
-/* Киберпанк (синий/пурпурный) */
-body.cyberpunk {
-    color: #0ff;
+.settings-panel.active {
+    display: block;
 }
 
-body.cyberpunk #scoreContainer,
-body.cyberpunk #settingsButton,
-body.cyberpunk .bonus,
-body.cyberpunk #settingsPanel,
-body.cyberpunk .settingsHeader h2,
-body.cyberpunk #closeSettings,
-body.cyberpunk .settingItem label,
-body.cyberpunk .settingItem p,
-body.cyberpunk .schemeButton,
-body.cyberpunk #gameFieldBorder {
-    color: #f0f;
-    border-color: #f0f;
-    box-shadow: 0 0 15px #f0f;
-    text-shadow: 0 0 10px #f0f;
+.settings-row {
+    margin: 15px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-body.cyberpunk .settingItem input[type="range"] {
-    border-color: #f0f;
-    box-shadow: 0 0 5px #f0f;
+/* Стили для input и select */
+input[type="range"], select {
+    background: #000;
+    border: 1px solid #0f0;
+    color: #0f0;
+    padding: 5px;
+    width: 150px;
 }
 
-body.cyberpunk .settingItem input[type="range"]::-webkit-slider-thumb {
-    background: #f0f;
-    box-shadow: 0 0 10px #f0f;
-}
-
-body.cyberpunk .schemeButton.active {
-    background-color: #f0f;
-    color: #000;
-    box-shadow: 0 0 15px #f0f;
-}
-
-/* Хаос (красный/желтый) */
-body.chaos {
-    color: #f00;
-}
-
-body.chaos #scoreContainer,
-body.chaos #settingsButton,
-body.chaos .bonus,
-body.chaos #settingsPanel,
-body.chaos .settingsHeader h2,
-body.chaos #closeSettings,
-body.chaos .settingItem label,
-body.chaos .settingItem p,
-body.chaos .schemeButton,
-body.chaos #gameFieldBorder {
-    color: #ff0;
-    border-color: #ff0;
-    box-shadow: 0 0 15px #ff0;
-    text-shadow: 0 0 10px #ff0;
-}
-
-body.chaos .settingItem input[type="range"] {
-    border-color: #ff0;
-    box-shadow: 0 0 5px #ff0;
-}
-
-body.chaos .settingItem input[type="range"]::-webkit-slider-thumb {
-    background: #ff0;
-    box-shadow: 0 0 10px #ff0;
-}
-
-body.chaos .schemeButton.active {
-    background-color: #ff0;
-    color: #000;
-    box-shadow: 0 0 15px #ff0;
-}
-
-/* Обновляем медиа-запрос для более надежной адаптации */
-@media (max-aspect-ratio: 9/16) {
-    #gameContainer {
-        width: 100%;
-        max-width: none;
-        height: auto;
-        max-height: 100vh;
+select {
+    option {
+        background: #000;
+        color: #0f0;
     }
 }
 
-@media (min-aspect-ratio: 9/16) {
-    #gameContainer {
-        height: 100vh;
-        width: auto;
+.bonuses-container {
+    position: absolute;
+    top: 10px;
+    right: 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 4;
+}
+
+.bonus-button {
+    position: relative;
+    padding: 5px 10px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #0ff;
+    box-shadow: 0 0 10px #0ff, 0 0 20px rgba(0, 255, 255, 0.3);
+    border-radius: 5px;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bonus-button img {
+    width: 24px;
+    height: 24px;
+}
+
+.bonus-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cooldown-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background: rgba(255, 255, 255, 0.3);
+    z-index: -1;
+}
+
+/* Оверлеи */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10;
+}
+
+#game-over-overlay {
+    display: none;
+}
+
+/* Неоновый текст */
+.neon-text {
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 10px #0f0;
+}
+
+.neon-button {
+    font-family: 'Orbitron', sans-serif;
+    background: none;
+    border: 2px solid #0f0;
+    color: 0f0;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 10px #0f0;
+    margin: 5px;
+}
+
+.neon-button:hover {
+    background-color: rgba(0, 255, 0, 0.2);
+}
+
+/* Цветовые схемы */
+body.matrix {
+    --primary-color: #0f0;
+    --shadow-color: rgba(0, 255, 0, 0.3);
+}
+
+body.cyber {
+    --primary-color: #0ff;
+    --shadow-color: rgba(0, 255, 255, 0.3);
+}
+
+body.neon {
+    --primary-color: #f0f;
+    --shadow-color: rgba(255, 0, 255, 0.3);
+}
+
+body.retro {
+    --primary-color: #ffa500;
+    --shadow-color: rgba(255, 165, 0, 0.3);
+}
+
+body.gold {
+    --primary-color: #ffd700;
+    --shadow-color: rgba(255, 215, 0, 0.3);
+}
+
+body.space {
+    --primary-color: #9370db;
+    --shadow-color: rgba(147, 112, 219, 0.3);
+}
+
+body.cyberpunk2077 {
+    --primary-color: #fcee0a;
+    --shadow-color: rgba(252, 238, 10, 0.3);
+    --secondary-color: #00ffff;
+    --accent-color: #ff00ff;
+}
+
+body.cyberpunk2077 .neon-button {
+    position: relative;
+    color: var(--primary-color);
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--primary-color);
+    clip-path: polygon(0 0, 100% 0, 100% 75%, 90% 100%, 0 100%);
+    box-shadow: 0 0 10px var(--shadow-color);
+    text-transform: uppercase;
+    overflow: hidden;
+}
+
+body.cyberpunk2077 .neon-button:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+}
+
+body.cyberpunk2077 .neon-button:hover:before {
+    opacity: 0.15;
+}
+
+body.cyberpunk2077 .neon-button:after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 5px;
+    height: 5px;
+    background: var(--secondary-color);
+    box-shadow: 0 0 8px var(--secondary-color);
+}
+
+.cybr-btn {
+    --primary-hue: 47;
+    --primary-lightness: 65;
+    --color: hsl(0, 0%, 100%);
+    --font-size: 18px;
+    --shadow-primary-hue: 180;
+    --clip: polygon(0 0, 100% 0, 100% 100%, 8% 100%, 0 70%);
+    --border: 4px;
+    --shimmy-distance: 5;
+    --clip-one: polygon(0 2%, 100% 2%, 100% 95%, 95% 95%, 95% 90%, 85% 90%, 85% 95%, 8% 95%, 0 70%);
+    --clip-two: polygon(0 78%, 100% 78%, 100% 100%, 95% 100%, 95% 90%, 85% 90%, 85% 100%, 8% 100%, 0 78%);
+    --clip-three: polygon(0 44%, 100% 44%, 100% 54%, 95% 54%, 95% 54%, 85% 54%, 85% 54%, 8% 54%, 0 54%);
+    --clip-four: polygon(0 0, 100% 0, 100% 0, 95% 0, 95% 0, 85% 0, 85% 0, 8% 0, 0 0);
+    --clip-five: polygon(0 0, 100% 0, 100% 0, 95% 0, 95% 0, 85% 0, 85% 0, 8% 0, 0 0);
+    --clip-six: polygon(0 40%, 100% 40%, 100% 85%, 95% 85%, 95% 85%, 85% 85%, 85% 85%, 8% 85%, 0 70%);
+    --clip-seven: polygon(0 63%, 100% 63%, 100% 80%, 95% 80%, 95% 80%, 85% 80%, 85% 80%, 8% 80%, 0 70%);
+    
+    font-family: 'Industry', sans-serif;
+    color: var(--color);
+    cursor: pointer;
+    background: transparent;
+    text-transform: uppercase;
+    font-size: var(--font-size);
+    outline: transparent;
+    letter-spacing: 2px;
+    position: relative;
+    font-weight: 700;
+    border: 0;
+    min-width: 120px;
+    height: 40px;
+    line-height: 40px;
+    transition: background 0.2s;
+}
+
+.cybr-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cybr-btn:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    clip-path: var(--clip);
+    background: hsl(var(--primary-hue), 85%, calc(var(--primary-lightness) * 1%));
+    z-index: -1;
+}
+
+.cybr-btn:after {
+    content: '';
+    position: absolute;
+    top: var(--border);
+    left: var(--border);
+    right: var(--border);
+    bottom: var(--border);
+    clip-path: var(--clip);
+    background: #000;
+    z-index: -1;
+}
+
+.cybr-btn__glitch {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    clip-path: var(--clip);
+    background: hsl(var(--primary-hue), 85%, calc(var(--primary-lightness) * 1%));
+    display: none;
+}
+
+.cybr-btn:hover .cybr-btn__glitch {
+    display: block;
+    animation: glitch 2s linear infinite;
+}
+
+.cybr-btn__tag {
+    position: absolute;
+    padding: 1px 4px;
+    letter-spacing: 1px;
+    font-size: 10px;
+    bottom: -5%;
+    right: 5%;
+    font-weight: normal;
+    color: hsl(0, 0%, 0%);
+    background: hsl(var(--primary-hue), 85%, calc(var(--primary-lightness) * 0.8%));
+}
+
+@keyframes glitch {
+    0% {
+        clip-path: var(--clip-one);
+    }
+    2%, 8% {
+        clip-path: var(--clip-two);
+        transform: translate(calc(var(--shimmy-distance) * -1%), 0);
+    }
+    6%, 12% {
+        clip-path: var(--clip-two);
+        transform: translate(calc(var(--shimmy-distance) * 1%), 0);
+    }
+    10%, 16% {
+        clip-path: var(--clip-three);
+        transform: translate(0, calc(var(--shimmy-distance) * 1%));
+    }
+    14%, 20% {
+        clip-path: var(--clip-three);
+        transform: translate(0, calc(var(--shimmy-distance) * -1%));
+    }
+    22%, 28% {
+        clip-path: var(--clip-four);
+        transform: translate(calc(var(--shimmy-distance) * 1%), 0);
+    }
+    26%, 32% {
+        clip-path: var(--clip-four);
+        transform: translate(calc(var(--shimmy-distance) * -1%), 0);
+    }
+    30%, 36% {
+        clip-path: var(--clip-five);
+        transform: translate(0, calc(var(--shimmy-distance) * 1%));
+    }
+    34%, 40% {
+        clip-path: var(--clip-five);
+        transform: translate(0, calc(var(--shimmy-distance) * -1%));
+    }
+    42%, 48% {
+        clip-path: var(--clip-six);
+        transform: translate(calc(var(--shimmy-distance) * 1%), 0);
+    }
+    46%, 52% {
+        clip-path: var(--clip-six);
+        transform: translate(calc(var(--shimmy-distance) * -1%), 0);
+    }
+    50%, 56% {
+        clip-path: var(--clip-seven);
+        transform: translate(0, calc(var(--shimmy-distance) * 1%));
+    }
+    54%, 60% {
+        clip-path: var(--clip-seven);
+        transform: translate(0, calc(var(--shimmy-distance) * -1%));
+    }
+    62%, 68% {
+        clip-path: var(--clip-four);
+        transform: translate(0, 0);
+    }
+    100% {
+        clip-path: var(--clip-one);
+        transform: translate(0, 0);
+    }
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media (max-width: 768px) {
+    .settings-panel {
+        width: 250px;
+    }
+    
+    .neon-button {
+        padding: 15px 25px;
+        font-size: 16px;
+    }
+    
+    .score-container {
+        font-size: 20px;
     }
 }

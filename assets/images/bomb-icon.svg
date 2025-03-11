@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Неоновое свечение -->
+  <filter id="bombIconGlow">
+    <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- Основа бомбы (круг) -->
+  <circle cx="32" cy="38" r="20" fill="none" stroke="#00aaff" stroke-width="2" filter="url(#bombIconGlow)"/>
+  
+  <!-- Запал -->
+  <path d="M32,18 L32,10 M28,12 L36,12" stroke="#00aaff" stroke-width="2" fill="none"/>
+  
+  <!-- Цифровые линии на бомбе -->
+  <circle cx="32" cy="38" r="14" fill="none" stroke="#00aaff" stroke-width="1" opacity="0.7"/>
+  <line x1="18" y1="38" x2="46" y2="38" stroke="#00aaff" stroke-width="1" opacity="0.7"/>
+  <line x1="32" y1="24" x2="32" y2="52" stroke="#00aaff" stroke-width="1" opacity="0.7"/>
+  
+  <!-- Мигающий индикатор -->
+  <circle cx="32" cy="38" r="6" fill="#00aaff" opacity="0.8" filter="url(#bombIconGlow)">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="0.8s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Искры вокруг запала -->
+  <g filter="url(#bombIconGlow)" opacity="0.8">
+    <line x1="26" y1="12" x2="24" y2="10" stroke="#00aaff" stroke-width="1"/>
+    <line x1="38" y1="12" x2="40" y2="10" stroke="#00aaff" stroke-width="1"/>
+    <line x1="32" y1="8" x2="32" y2="6" stroke="#00aaff" stroke-width="1"/>
+  </g>
+  
+  <!-- Цифровой узор (матричные элементы) -->
+  <text x="29" y="40" font-family="monospace" font-size="6" fill="#00aaff" opacity="0.9">01</text>
+</svg>

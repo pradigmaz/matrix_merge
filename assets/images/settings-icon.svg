@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Неоновое свечение -->
+  <filter id="settingsGlow">
+    <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- Основное кольцо шестеренки -->
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#00ff00" stroke-width="2"/>
+  
+  <!-- Внешние зубцы шестеренки -->
+  <g fill="none" stroke="#00ff00" stroke-width="2" filter="url(#settingsGlow)">
+    <path d="M32,8 L32,16"/>
+    <path d="M32,48 L32,56"/>
+    <path d="M8,32 L16,32"/>
+    <path d="M48,32 L56,32"/>
+    <path d="M16,16 L22,22"/>
+    <path d="M42,42 L48,48"/>
+    <path d="M16,48 L22,42"/>
+    <path d="M42,22 L48,16"/>
+  </g>
+  
+  <!-- Внутренний круг -->
+  <circle cx="32" cy="32" r="7" fill="none" stroke="#00ff00" stroke-width="1.5"/>
+  
+  <!-- Центральная точка -->
+  <circle cx="32" cy="32" r="3" fill="#00ff00" filter="url(#settingsGlow)"/>
+  
+  <!-- Цифровые линии -->
+  <line x1="26" y1="32" x2="38" y2="32" stroke="#00ff00" stroke-width="1" opacity="0.7"/>
+  <line x1="32" y1="26" x2="32" y2="38" stroke="#00ff00" stroke-width="1" opacity="0.7"/>
+</svg>

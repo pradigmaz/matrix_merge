@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <!-- Чёрный фон -->
+  <rect width="1080" height="1920" fill="#000000"/>
+  
+  <!-- Сетка в стиле киберпанка -->
+  <g stroke="#003300" stroke-width="1" opacity="0.2">
+    <!-- Горизонтальные линии -->
+    <line x1="0" y1="240" x2="1080" y2="240"/>
+    <line x1="0" y1="480" x2="1080" y2="480"/>
+    <line x1="0" y1="720" x2="1080" y2="720"/>
+    <line x1="0" y1="960" x2="1080" y2="960"/>
+    <line x1="0" y1="1200" x2="1080" y2="1200"/>
+    <line x1="0" y1="1440" x2="1080" y2="1440"/>
+    <line x1="0" y1="1680" x2="1080" y2="1680"/>
+    
+    <!-- Вертикальные линии -->
+    <line x1="180" y1="0" x2="180" y2="1920"/>
+    <line x1="360" y1="0" x2="360" y2="1920"/>
+    <line x1="540" y1="0" x2="540" y2="1920"/>
+    <line x1="720" y1="0" x2="720" y2="1920"/>
+    <line x1="900" y1="0" x2="900" y2="1920"/>
+  </g>
+  
+  <!-- Японские/Китайские/Цифровые символы (примеры по всему полю) -->
+  <g fill="#005500" font-family="monospace" opacity="0.3">
+    <!-- Примеры символов, разбросанных по полю -->
+    <text x="100" y="150" font-size="18">ア</text>
+    <text x="300" y="220" font-size="14">キ</text>
+    <text x="500" y="300" font-size="20">ツ</text>
+    <text x="700" y="180" font-size="16">ミ</text>
+    <text x="900" y="250" font-size="22">ラ</text>
+    
+    <text x="150" y="400" font-size="24">0</text>
+    <text x="350" y="450" font-size="16">1</text>
+    <text x="550" y="520" font-size="20">0</text>
+    <text x="750" y="480" font-size="18">1</text>
+    <text x="950" y="430" font-size="22">0</text>
+    
+    <text x="120" y="650" font-size="20">月</text>
+    <text x="320" y="700" font-size="18">火</text>
+    <text x="520" y="620" font-size="16">水</text>
+    <text x="720" y="680" font-size="22">木</text>
+    <text x="920" y="750" font-size="24">金</text>
+    
+    <text x="200" y="850" font-size="18">∑</text>
+    <text x="400" y="920" font-size="22">∞</text>
+    <text x="600" y="880" font-size="14">∫</text>
+    <text x="800" y="950" font-size="20">√</text>
+    <text x="1000" y="900" font-size="16">∆</text>
+    
+    <text x="150" y="1050" font-size="20">ア</text>
+    <text x="350" y="1100" font-size="16">イ</text>
+    <text x="550" y="1150" font-size="22">ウ</text>
+    <text x="750" y="1000" font-size="18">エ</text>
+    <text x="950" y="1200" font-size="14">オ</text>
+    
+    <text x="100" y="1250" font-size="18">0</text>
+    <text x="300" y="1300" font-size="22">1</text>
+    <text x="500" y="1350" font-size="14">0</text>
+    <text x="700" y="1320" font-size="20">1</text>
+    <text x="900" y="1280" font-size="16">0</text>
+    
+    <text x="200" y="1450" font-size="22">字</text>
+    <text x="400" y="1500" font-size="18">的</text>
+    <text x="600" y="1550" font-size="20">文</text>
+    <text x="800" y="1480" font-size="16">章</text>
+    <text x="1000" y="1520" font-size="14">是</text>
+    
+    <text x="150" y="1650" font-size="16">∏</text>
+    <text x="350" y="1700" font-size="20">∑</text>
+    <text x="550" y="1750" font-size="14">∫</text>
+    <text x="750" y="1720" font-size="18">∮</text>
+    <text x="950" y="1680" font-size="22">∇</text>
+    
+    <text x="100" y="1850" font-size="20">サ</text>
+    <text x="300" y="1800" font-size="16">シ</text>
+    <text x="500" y="1880" font-size="22">ス</text>
+    <text x="700" y="1820" font-size="14">セ</text>
+    <text x="900" y="1900" font-size="18">ソ</text>
+  </g>
+  
+  <!-- Неоновые горизонтальные линии (имитация сканирования) -->
+  <g>
+    <line x1="0" y1="300" x2="1080" y2="300" stroke="#00ff00" stroke-width="1" opacity="0.5">
+      <animate attributeName="y1" values="0;1920;0" dur="20s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="0;1920;0" dur="20s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.1;0.5;0.1" dur="20s" repeatCount="indefinite"/>
+    </line>
+    
+    <line x1="0" y1="800" x2="1080" y2="800" stroke="#00aaff" stroke-width="1" opacity="0.3">
+      <animate attributeName="y1" values="1920;0;1920" dur="25s" repeatCount="indefinite"/>
+      <animate attributeName="y2" values="1920;0;1920" dur="25s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.1;0.3;0.1" dur="25s" repeatCount="indefinite"/>
+    </line>
+  </g>
+  
+  <!-- Пикселизированный шум (имитация помех) -->
+  <g opacity="0.05">
+    <rect x="100" y="200" width="2" height="2" fill="#00ff00"/>
+    <rect x="400" y="300" width="2" height="2" fill="#00ff00"/>
+    <rect x="700" y="100" width="2" height="2" fill="#00ff00"/>
+    <rect x="900" y="500" width="2" height="2" fill="#00ff00"/>
+    <rect x="200" y="700" width="2" height="2" fill="#00ff00"/>
+    <rect x="600" y="900" width="2" height="2" fill="#00ff00"/>
+    <rect x="800" y="1100" width="2" height="2" fill="#00ff00"/>
+    <rect x="300" y="1300" width="2" height="2" fill="#00ff00"/>
+    <rect x="500" y="1500" width="2" height="2" fill="#00ff00"/>
+    <rect x="100" y="1700" width="2" height="2" fill="#00ff00"/>
+  </g>
+</svg>

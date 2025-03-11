@@ -2,67 +2,111 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matrix Drop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Matrix Merge</title>
     <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "./js/three.module.min.js",
+        "three/addons/": "./js/"
+      }
+    }
+    </script>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
+    <div class="game-container">
+        <!-- Граница игрового поля -->
+        <div class="game-border"></div>
         
-        <!-- Верхняя часть интерфейса -->
-        <div id="uiOverlay">
-            <!-- Счетчик очков -->
-            <div id="scoreContainer">Score: <span id="score">0</span></div>
-            
-            <!-- Кнопка настроек -->
-            <div id="settingsButton"></div>
-            
-            <!-- Контейнер с бонусами (размещен внизу согласно ТЗ) -->
-            <div id="bonusContainer">
-                <div id="disintegrateBonus" class="bonus" title="Дезинтеграция объектов"></div>
-                <div id="bombBonus" class="bonus" title="Взрывная волна"></div>
+        <!-- Матричный фоновый дождь -->
+        <canvas id="matrix-bg"></canvas>
+        
+        <!-- Основной игровой канвас -->
+        <canvas id="game-canvas"></canvas>
+        
+        <!-- Верхняя граница поражения -->
+        <div class="death-line"></div>
+        
+        <!-- Игровой интерфейс -->
+        <div class="ui-container">
+            <div class="score-container">
+                <span class="score-label">Счет:</span>
+                <span id="score">0</span>
             </div>
             
-            <!-- Верхняя линия (граница проигрыша) -->
-            <div id="boundaryLine"></div>
-            
-            <!-- Рамка границ игрового поля -->
-            <div id="gameFieldBorder"></div>
+            <div class="settings-button" id="settings-toggle">
+                <span class="neon-text">⚙</span>
+            </div>
+        </div>
+        
+        <!-- Панель настроек (скрыта по умолчанию) -->
+        <div class="settings-panel" id="settings-panel">
+            <h2 class="neon-text">Настройки</h2>
+            <div class="settings-row">
+                <label for="music-volume" class="neon-text">Музыка:</label>
+                <input type="range" id="music-volume" min="0" max="100" value="50">
+            </div>
+            <div class="settings-row">
+                <label for="color-scheme" class="neon-text">Цветовая схема:</label>
+                <select id="color-scheme">
+                    <option value="matrix">Матрица</option>
+                    <option value="cyber">Кибер</option>
+                    <option value="neon">Неон</option>
+                    <option value="retro">Ретро</option>
+                    <option value="gold">Золотой</option>
+                    <option value="space">Космос</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Бонусы -->
+        <div class="bonuses-container">
+            <div class="bonus-button" id="disintegration">
+                <span class="neon-text">Дезинтеграция</span>
+                <div class="cooldown-overlay" id="disintegration-cooldown"></div>
+            </div>
+            <div class="bonus-button" id="bomb">
+                <span class="neon-text">Бомба</span>
+                <div class="cooldown-overlay" id="bomb-cooldown"></div>
+            </div>
+        </div>
+        
+        <!-- Игровые оверлеи -->
+        <div class="overlay" id="start-overlay">
+            <h1 class="neon-text">Matrix Merge</h1>
+            <button class="neon-button" id="start-button">Начать игру</button>
+        </div>
+        
+        <div class="overlay" id="game-over-overlay">
+            <h2 class="neon-text">Игра окончена</h2>
+            <div class="score-display">
+                <span class="neon-text">Ваш счет:</span>
+                <span id="final-score" class="neon-text">0</span>
+            </div>
+            <button class="neon-button" id="continue-button">Продолжить</button>
+            <button class="neon-button" id="restart-button">Начать заново</button>
         </div>
     </div>
     
-    <!-- Панель настроек (теперь скрыта по умолчанию) -->
-    <div id="settingsPanel" class="hidden">
-        <div class="settingsHeader">
-            <h2>Настройки</h2>
-            <div id="closeSettings">✕</div>
-        </div>
-        <div class="settingsContent">
-            <div class="settingItem">
-                <label for="musicVolume">Музыка:</label>
-                <input type="range" id="musicVolume" min="0" max="100" value="50">
-            </div>
-            <div class="settingItem">
-                <label for="soundVolume">Звуки:</label>
-                <input type="range" id="soundVolume" min="0" max="100" value="50">
-            </div>
-            <div class="settingItem">
-                <p>Цветовая схема:</p>
-                <div class="colorSchemes">
-                    <div class="schemeButton active" data-scheme="classic">Классическая</div>
-                    <div class="schemeButton" data-scheme="cyberpunk">Киберпанк</div>
-                    <div class="schemeButton" data-scheme="chaos">Хаос</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Скрипты -->
-    <script src="src/physics.js"></script>
-    <script src="src/render.js"></script>
-    <script src="src/ui.js"></script>
-    <script src="src/ads.js"></script>
-    <script src="src/game.js"></script>
+    <!-- Подключение скриптов -->
+    <script src="js/physics.js"></script>
+    <script src="js/effects.js" type="module"></script>
+    <script>
+        // Ожидаем загрузки модуля effects.js, прежде чем загружать остальные скрипты
+        window.addEventListener('DOMContentLoaded', function() {
+            // Небольшая задержка для уверенности, что MatrixEffect доступен
+            setTimeout(function() {
+                if (!window.MatrixEffect) {
+                    console.error('MatrixEffect не загружен. Проверьте консоль на наличие ошибок.');
+                }
+            }, 500);
+        });
+    </script>
+    <script src="js/audio.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/ads.js"></script>
+    <script src="js/game.js"></script>
 </body>
 </html>

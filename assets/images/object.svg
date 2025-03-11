@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Базовая форма объекта (шестиугольник) -->
+  <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="#000000" stroke="#00ff00" stroke-width="2"/>
+  
+  <!-- Внутренние линии для киберпанк-стиля -->
+  <line x1="50" y1="5" x2="50" y2="95" stroke="#00ff00" stroke-width="1" opacity="0.5"/>
+  <line x1="10" y1="25" x2="90" y2="75" stroke="#00ff00" stroke-width="1" opacity="0.5"/>
+  <line x1="10" y1="75" x2="90" y2="25" stroke="#00ff00" stroke-width="1" opacity="0.5"/>
+  
+  <!-- Центральный круг -->
+  <circle cx="50" cy="50" r="15" fill="none" stroke="#00ff00" stroke-width="2"/>
+  
+  <!-- Неоновое свечение -->
+  <filter id="glow">
+    <feGaussianBlur stdDeviation="2.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- Тонкая обводка с эффектом свечения -->
+  <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" fill="none" stroke="#00ff00" stroke-width="1" filter="url(#glow)" opacity="0.8"/>
+</svg>

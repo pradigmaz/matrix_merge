@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Неоновое свечение -->
+  <filter id="disintegrationGlow">
+    <feGaussianBlur stdDeviation="1.5" result="blur"/>
+    <feMerge>
+      <feMergeNode in="blur"/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
+  </filter>
+  
+  <!-- Основа (куб в процессе распада) -->
+  <g fill="none" stroke="#00ff00" stroke-width="1.5" filter="url(#disintegrationGlow)">
+    <!-- Основная рамка -->
+    <rect x="16" y="16" width="32" height="32" opacity="0.8"/>
+    
+    <!-- Части, отлетающие от куба -->
+    <line x1="16" y1="16" x2="10" y2="10" opacity="0.6"/>
+    <line x1="48" y1="16" x2="54" y2="10" opacity="0.6"/>
+    <line x1="16" y1="48" x2="10" y2="54" opacity="0.6"/>
+    <line x1="48" y1="48" x2="54" y2="54" opacity="0.6"/>
+    
+    <!-- Маленькие квадраты (частицы) -->
+    <rect x="8" y="8" width="4" height="4" opacity="0.6"/>
+    <rect x="52" y="8" width="4" height="4" opacity="0.6"/>
+    <rect x="8" y="52" width="4" height="4" opacity="0.6"/>
+    <rect x="52" y="52" width="4" height="4" opacity="0.6"/>
+    
+    <!-- Средние частицы -->
+    <rect x="12" y="25" width="3" height="3" opacity="0.7"/>
+    <rect x="49" y="25" width="3" height="3" opacity="0.7"/>
+    <rect x="25" y="12" width="3" height="3" opacity="0.7"/>
+    <rect x="25" y="49" width="3" height="3" opacity="0.7"/>
+    <rect x="36" y="36" width="3" height="3" opacity="0.7"/>
+    <rect x="20" y="40" width="2" height="2" opacity="0.7"/>
+    <rect x="40" y="20" width="2" height="2" opacity="0.7"/>
+  </g>
+  
+  <!-- Внутренняя структура -->
+  <g stroke="#00ff00" stroke-width="1" opacity="0.8">
+    <line x1="16" y1="32" x2="48" y2="32"/>
+    <line x1="32" y1="16" x2="32" y2="48"/>
+    <line x1="16" y1="16" x2="48" y2="48"/>
+    <line x1="48" y1="16" x2="16" y2="48"/>
+  </g>
+  
+  <!-- Пульсирующий центр -->
+  <circle cx="32" cy="32" r="5" fill="#00ff00" opacity="0.8" filter="url(#disintegrationGlow)">
+    <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"/>
+  </circle>
+</svg>
